@@ -1,5 +1,7 @@
 # Harp Script
 
+- [한국어판 README_KR](README_KR.md)
+
 - Developed: Until ~December 2018
 
 - Status: Experimental / Discontinued

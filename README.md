@@ -45,4 +45,4 @@ Please refer to the files inside the example folder for syntax references and ex
 This project is discontinued. Issues or pull requests may not be fixed or will be handled non-periodically.
 
 
-## I dont share my code in github ::)) fuck you AI
+## source code in release. I hate github repo :)) sucks

@@ -18,6 +18,12 @@ Harp Script is a simple, experimental scripting language developed around 2018.
 
 - Some built-in functions related to dxlib
 
+## Implementation Features
+
+* **Direct-to-Bytecode (No AST):** Does not build an explicit Abstract Syntax Tree (AST). A recursive descent parser with an operator-precedence stack generates bytecode directly during parsing. (See `express.cpp`)
+* **Simple FFI (Foreign Function Interface):** Uses WinAPI (`LoadLibrary`/`GetProcAddress`) to dynamically load `.dll` files (e.g., `DxLib.dll`). These are wrapped as built-in functions (infunc) that can be called directly from the VM. (See `memory.h`, `infunc.cpp`)
+* **Stack-Based VM:** A simple stack-based virtual machine, written in C++, interprets and executes the bytecode. (See `execute.cpp`)
+* 
 ## Usage
 
 1. Write your code in a.harp.

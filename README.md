@@ -24,7 +24,9 @@ Harp Script is a simple, experimental scripting language developed around 2018.
 
 2. Run harp.exe.
 
-3. Bytecode will be generated as the output.
+3. Bytecode will be generated as the output file.
+
+4. And you can see the result. (Console or Dxlib program)
 
 ## Examples & Syntax
 

@@ -43,6 +43,3 @@ Please refer to the files inside the example folder for syntax references and ex
 ## Issues
 
 This project is discontinued. Issues or pull requests may not be fixed or will be handled non-periodically.
-
-
-## source code in release.

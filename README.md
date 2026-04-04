@@ -1,14 +1,28 @@
 # Harp Script
 
 - [한국어판 README_KR](README_KR.md)
-
-- Developed: Until ~December 2018
-
-- Status: Experimental / Discontinued
+- First Developed: ~December 2018
+- Remake : April 2026~
+- Status: Experimental
 
 ## Introduction
 
 Harp Script is a simple, experimental scripting language developed around 2018.
+
+<img width="200" height="200" alt="Image" src="https://github.com/user-attachments/assets/6a9b426f-38df-4145-a1be-634d9ce833e7" />
+
+- Simple grammar.
+- Flexible syntax.
+- but do it yourself (no Garbage Collection).
+- Not fast, but also Not so slow.
+- DSL? PL? I don’t know.
+- Harp seal is cute.
+- Not for **experts**
+
+## Latest Version (v0.1.1)
+- Modify Program Structure (VM, Compiler, Types... else)
+- Modify grammar
+- Escape from Toy Language
 
 ## Features
 
@@ -20,9 +34,34 @@ Harp Script is a simple, experimental scripting language developed around 2018.
 
 - Some built-in functions related to dxlib
 
+
+
+## Examples & Syntax
+
+Please refer to the files inside the example folder for syntax references and examples.
+
+- Flexible, Free style syntax. But be careful to use it.
+```
+~same grammar~
+n=100 n1=100.1
+n
+=100
+n1 =
+100.1
+
+
+~ same grammar ~
+print n, n1
+print n,
+n1
+
+```
+
+
+
 ## Implementation Features
 
-* **Direct-to-Bytecode (No AST):** Does not build an explicit Abstract Syntax Tree (AST). A recursive descent parser with an operator-precedence stack generates bytecode directly during parsing. (See `express.cpp`)
+* ** Direct-to-Bytecode (No AST):** Does not build an explicit Abstract Syntax Tree (AST). A recursive descent parser with an operator-precedence stack generates bytecode directly during parsing. (See `express.cpp`)
 * **Simple FFI (Foreign Function Interface):** Uses WinAPI (`LoadLibrary`/`GetProcAddress`) to dynamically load `.dll` files (e.g., `DxLib.dll`). These are wrapped as built-in functions (infunc) that can be called directly from the VM. (See `memory.h`, `infunc.cpp`)
 * **Stack-Based VM:** A simple stack-based virtual machine, written in C++, interprets and executes the bytecode. (See `execute.cpp`)
 * 
@@ -35,10 +74,6 @@ Harp Script is a simple, experimental scripting language developed around 2018.
 3. Bytecode will be generated as the output file.
 
 4. And you can see the result. (Console or Dxlib program)
-
-## Examples & Syntax
-
-Please refer to the files inside the example folder for syntax references and examples.
 
 ## Issues
 

@@ -75,6 +75,6 @@ n1
 
 4. And you can see the result. (Console or Dxlib program)
 
-## Issues
-
-This project is discontinued. Issues or pull requests may not be fixed or will be handled non-periodically.
+## LICENSE
+Until `v0.1.1` : Apache License 2.0 <br>
+After `v0.2.0` : LGPL

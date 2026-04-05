@@ -76,5 +76,5 @@ n1
 4. And you can see the result. (Console or Dxlib program)
 
 ## LICENSE
-Until `v0.1.1` : Apache License 2.0 <br>
-After `v0.2.0` : LGPL
+Until `v0.1.0` : Apache License 2.0 <br>
+After `v0.1.1` : LGPL

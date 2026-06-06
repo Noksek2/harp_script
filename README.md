@@ -1,5 +1,8 @@
 # Harp Script
 
+# Not yet.
+
+
 - [한국어판 README_KR](README_KR.md)
 - First Developed: ~December 2018
 - Remake : April 2026~
@@ -16,8 +19,7 @@ Harp Script is a simple, experimental scripting language developed around 2018.
 - but do it yourself (no Garbage Collection).
 - Not fast, but also Not so slow.
 - DSL? PL? I don’t know.
-- Harp seal is cute.
-- Not for **experts**
+
 
 ## Latest Version (v0.1.1)
 - Modify Program Structure (VM, Compiler, Types... else)

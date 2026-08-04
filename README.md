@@ -1,5 +1,7 @@
 # Harp Script
 
+**Documentation In progress**
+
 ## NOTICE
 This repository is mainly for introduction and explanation, and the code has not been uploaded. Codeberg Instead.
 https://codeberg.org/Noksek/harp_script
@@ -22,12 +24,16 @@ The goal of Harp Script is
 - Fast VM, Memory-friendly development (no Garbage Collection).
 - Light and fast VM.
 
-## Nagging-Style Philosophy
-- I don’t like today’s complicated languages, and Python is difficult too
+## Philosophy?
+- Easy to implement, use it for a long time.
+- Limited functions require thinking ability. Therefore **Foolish language** creates good developers. MAybe😛
+
+## Complain
+- I dont like Compiler theory 
+- Modern language is complicated. Even Python.
+- Code style debate awful.
 - Typing errors are the developer’s responsibility
-- Since I worked hard to implement it, let’s use it for a long time
-- Foolish language creates wise developers
-- I hate Compiler theory😛
+
 
 ## Latest Version (v0.1.1)
 - Modify Program Structure (VM, Compiler, Types... else)

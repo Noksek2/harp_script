@@ -1,9 +1,11 @@
 # Harp Script
 
-## Codeberg Please.
-**Please understand that this is a defense measure to prevent AI agents from indiscriminately learning code and ideas.**
+## NOTICE
+This repository is mainly for introduction and explanation, and the code has not been uploaded. Codeberg Instead.
+https://codeberg.org/Noksek/harp_script
 
-- [한국어판 README_KR](README_KR.md)
+## Info
+- [Korean/한국어판 README_KR](README_KR.md)
 - First Developed: ~December 2018
 - Remake : April 2026~
 - Status: Experimental
@@ -14,11 +16,11 @@ Harp Script is a simple, experimental scripting language developed around 2018.
 
 <img width="200" height="200" alt="Image" src="https://github.com/user-attachments/assets/6a9b426f-38df-4145-a1be-634d9ce833e7" />
 
-- Simple grammar.
-- Flexible syntax.
-- but do it yourself (no Garbage Collection).
-- Not fast, but also Not so slow.
-- DSL? PL? I don’t know.
+The goal of Harp Script is
+- Simple grammar, Flexible syntax.
+- A not-so-strict parser.
+- Fast VM, Memory-friendly development (no Garbage Collection).
+- Light and fast VM.
 
 
 ## Latest Version (v0.1.1)
@@ -36,6 +38,10 @@ Harp Script is a simple, experimental scripting language developed around 2018.
 
 - Some built-in functions related to dxlib
 
+
+
+## Codeberg, Please...
+- **Hosted on Codeberg** : To prevent unauthorized AI data harvesting, please contribute or fork via Codeberg. If using GitHub, keep your forks private.
 
 
 ## Examples & Syntax

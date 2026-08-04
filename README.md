@@ -1,7 +1,7 @@
 # Harp Script
 
-# Not yet.
-
+## Codeberg Please.
+**Please understand that this is a defense measure to prevent AI agents from indiscriminately learning code and ideas.**
 
 - [한국어판 README_KR](README_KR.md)
 - First Developed: ~December 2018

@@ -26,12 +26,9 @@ The goal of Harp Script is
 
 ## Philosophy?
 - Easy to implement, use it for a long time.
-- Limited functions require thinking ability. Therefore **Foolish language** creates good developers. MAybe😛
-
-## Complain
-- I dont like Compiler theory 
-- Modern language is complicated. Even Python.
-- Code style debate awful.
+- Limited functions require thinking ability.
+- Basic functions, no complicated functions.
+- Code style debate useless
 - Typing errors are the developer’s responsibility
 
 

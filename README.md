@@ -22,6 +22,12 @@ The goal of Harp Script is
 - Fast VM, Memory-friendly development (no Garbage Collection).
 - Light and fast VM.
 
+## Nagging-Style Philosophy
+- I don’t like today’s complicated languages, and Python is difficult too
+- Typing errors are the developer’s responsibility
+- Since I worked hard to implement it, let’s use it for a long time
+- Foolish language creates wise developers
+- I hate Compiler theory😛
 
 ## Latest Version (v0.1.1)
 - Modify Program Structure (VM, Compiler, Types... else)
@@ -48,7 +54,7 @@ The goal of Harp Script is
 
 Please refer to the files inside the example folder for syntax references and examples.
 
-- Flexible, Free style syntax. But be careful to use it.
+- Flexible, Free style syntax. But be careful to use it. ()
 ```
 ~same grammar~
 n=100 n1=100.1
@@ -84,5 +90,5 @@ n1
 4. And you can see the result. (Console or Dxlib program)
 
 ## LICENSE
-Until `v0.1.0` : Apache License 2.0 <br>
-After `v0.1.1` : LGPL
+Until `v0.1.0` : `Apache License 2.0` <br>
+After `v0.1.1` : `HarpScript License` (will explain it later.)

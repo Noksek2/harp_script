@@ -31,10 +31,10 @@ enum errortype {
 #undef ERROR
 class ERRORMSG {
 public:
-	uint32_t err_cnt;
+	static uint32_t err_cnt;
 	ERRORMSG() { err_cnt = 0; }
-	void error(const wstring &s, errortype t, uint32_t line) {
-		err_cnt++;
+	static void puterror(const wstring &s, errortype t, uint32_t line) {
+		ERRORMSG :: err_cnt++;
 
 		printf("ERROR(%d) : ", line);
 

@@ -1,4 +1,12 @@
-﻿/*런타임 시 사용하는 C 함수들*/
+﻿//#load_dll dxlib.dll
+//func dxlib_end()
+//func dxlib_init()
+//func dxlib_loadgraph()
+//func dxlib_drawgraph(int,float,)
+
+// arr < 3
+
+/*런타임 시 사용하는 C 함수들*/
 #include "execute.h"
 
 HMODULE g_dll;
@@ -25,7 +33,12 @@ dx_checksound checksound;
 
 CONSOLE_CURSOR_INFO cursorinfo;
 
-int random(int min, int max) {
+
+
+
+
+
+int random(int64_t min, int64_t max) {
 	return (int)(((double)rand() / RAND_MAX) * (max - min)) + min;
 }
 double randnum() {
@@ -100,11 +113,11 @@ double degree(double n) {
 static harpobj make_typestr_obj(harpdata dat) {
    harpstr str;
    uint32_t type;
-   switch (GET_TAGNO(dat)) {
+   switch (dat.GetType()) {
    case TInt:
        str = harpstr_new(L"int", 3); break;
-   case TNull:
-       str = harpstr_new(L"null", 4); break;
+   case TUnq:
+       str = harpstr_new(L"uniq", 4); break;
    case TError:
        str = harpstr_new(L"err", 3); break;
    case TObj:
@@ -112,10 +125,12 @@ static harpobj make_typestr_obj(harpdata dat) {
 	   //dat.decRC();
    //case TStr:
    //    str = harpstr_new(L"instr", 5); break;
-   //case TFnc:
-   //    str = harpstr_new(L"fnc", 4); break;
-   default:
+   case TFnc:
+       str = harpstr_new(L"fnc", 4); break;
+   case TFloat:
        str = harpstr_new(L"float", 5); break;
+   default:
+	   str = harpstr_new(L"?", 1); break;
    }
    return harpobj_new(str, objt_str);
 
@@ -124,29 +139,85 @@ static harpdata make_typestr(harpdata n0) {
 
 	harpobj* obj = g_objpool->Insert(make_typestr_obj(n0));
 
-	n0.decRC();
+	n0.DecRC();
 	n0.SetObj(obj);
 }
-const harpdata harp_fopen(harpdata n0, harpdata n1) {
+inline const harpdata harp_fclose(harpdata n0) {
+	harpdata h;
+	if (!IF_INT(n0)) {
+		DECODE_OBJ(n0)->DecRC();
+		h.byte = ENCODE_ERR(rte_func_para_no_match);
+		return h;
+	}
+	FILE* fp = (FILE*)DECODE_INT(n0);
+	if (fclose(fp) < 0) {
+		h.byte = ENCODE_ERR(rte_unknown);
+		
+	}
+	return h;
+}
+inline const harpdata harp_fopen(harpdata n0, harpdata n1) {
 	harpdata d;
 	FILE * fp;
-	if (!IF_OBJ(n0)) goto l_dec;
-	if (!IF_OBJ(n1)) goto l_dec;
+	if (!IF_OBJ(n0)) goto l_err;
+	if (!IF_OBJ(n1)) goto l_err;
 	
-	if (DECODE_OBJ(n0)->objtype != objt_str) goto l_dec;
-	if (DECODE_OBJ(n1)->objtype != objt_str) goto l_dec;
+	if (DECODE_OBJ(n0)->objtype != objt_str) goto l_err;
+	if (DECODE_OBJ(n1)->objtype != objt_str) goto l_err;
 
 	_wfopen_s(&fp, n0.GetStr()->ptr, n1.GetStr()->ptr);
 	
 	d.SetInt((uint64_t)fp);
-l_dec:
+	goto l_dec;
+l_err:
+	d.byte = ENCODE_ERR(rte_func_para_no_match);
+l_dec: 
 	DECODE_OBJ(n0)->DecRC();
 	DECODE_OBJ(n1)->DecRC();
+	
+	return d;
+}
+inline const harpdata harp_rand() {
+	harpdata d;
+	d.f64 = g_randdev->GetRand_f();
+	return d;
+}
+inline const harpdata harp_rand(harpdata n0) {
+	harpdata d;
+	if (!IF_INT(n0)) goto l_err;
+	d.byte = DECODE_INT_V(g_randdev->GetRand_i(DECODE_INT(n0)));
+	return d;
+l_err:
+	{
+		d.byte = ENCODE_ERR(rte_func_para_no_match);
+		n0.DecRC();
+		return d;
+	}
+}
+inline const harpdata harp_rand(harpdata n0, harpdata n1) {
+	harpdata d;
+	if (!IF_INT(n0)) goto l_err;
+	if (!IF_INT(n1)) goto l_err;
+	//
+	{
+		d.byte = DECODE_INT_V(g_randdev->GetRand_i(DECODE_INT(n0), DECODE_INT(n1)));
+		return d;
+	}
+l_err: {
+	d.byte = ENCODE_ERR(rte_func_para_no_match);
+	n0.DecRC();
+	n1.DecRC();
+	return d;
+	}
 }
 
+
+
+
 void infunc_call(infunctype ft, harpdata* dats, uint32_t para_len) {
-#define ASSERT_PARA(N, BUF) Harp_assert(para_len >= (N), BUF);
-#define ASSERT_PARA_DEF(N) ASSERT_PARA(N, "[ERROR] count of para unmatched");
+//#define ASSERT_PARA(N, BUF) Harp_assert(para_len == (N), BUF);
+//#define ASSERT_PARA_DEF(N) ASSERT_PARA(N, "[ERROR] count of para unmatched");
+#define ASSERT_PARA_DEF(PARA_CNT) if(para_len != PARA_CNT)N[0].SetErr(rte_func_para_no_match);
 	harpdata* const N = dats - para_len;
 	switch (ft) {
 	case f_type:case f_types: {
@@ -161,8 +232,40 @@ void infunc_call(infunctype ft, harpdata* dats, uint32_t para_len) {
 	}
 	case f_fclose:
 		break;
-	case f_get:
-		make_typestr(N[0]);
+	case f_gets:
+		for (uint32_t i = 0; i < para_len; i++)
+			N[i].Print();
+		break;
+	case f_abs: 
+		ASSERT_PARA_DEF(1);
+		if (IF_INT(N[0])) {
+			if (N[0].byte & 0x800000000000llu) {
+				N[0].byte ^= 0x800000000000llu;
+			}
+		}
+		else if (IF_FLOAT(N[0])) {
+			if (N[0].f64 < 0) N[0].f64 *= -1.0;
+		}
+		else {
+			N[0].SetErr(rte_unknown);
+		}
+		break;
+	case f_sin:
+	case f_cos:
+	case f_rand:N[0] = harp_rand(); break;
+	case f_random:
+		if(para_len == 0){ N[0] = harp_rand(); }
+		if (para_len == 1) {
+			N[0] = harp_rand(N[0]);
+		}
+		else if (para_len == 2) {
+			N[0] = harp_rand(N[0], N[1]);
+		}
+		else N[0].SetErr(rte_func_para_no_match);
+		break;
+	default:
+		N[0].SetErr(rte_infunc_unknown);
+		break;
 	}
 }
 
@@ -385,4 +488,4 @@ void EXECUTE::callinfunc(infunctype t) {
 		return 1;
 	}
 	return false;
-}
+};

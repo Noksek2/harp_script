@@ -48,7 +48,7 @@ void harpdata_test() {
 	harpdata_test_calc(n1, n2);
 
 	n1.byte = ENCODE_INT(200);
-	n2.byte = 3.0;
+	n2.f64 = 3.0;
 
 	puts("INT & FLOAT");
 	harpdata_test_calc(n1, n2);

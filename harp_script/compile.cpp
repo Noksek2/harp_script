@@ -8,9 +8,9 @@ void COMPILE::funcdef() {//함수 쓰지 마셈. 오류 걸림
 	exe.pushfunc(t.s);
 
 	nfunc = (uint32_t)exe.symtable.size() - 1;
-	bytecode.push({ op_pushfunc, nfunc });
+	bytecode.push( op_pushfunc, nfunc );
 	fndef_idx = bytecode.m_len;
-	bytecode.push({ op_jmp, 0 });
+	bytecode.push( op_jmp, 0 );
 
 	exe.symtable[nfunc].func = bytecode.m_len;
 	NEXT;
@@ -28,8 +28,8 @@ void COMPILE::funcdef() {//함수 쓰지 마셈. 오류 걸림
 	NEXT;
 	block();
 	nfunc = 0;
-	bytecode.push({ op_push, 1U });
-	bytecode.push({ op_return });
+	bytecode.push( op_push, 1U );
+	bytecode.push( op_return );
 	bytecode[fndef_idx].opr = bytecode.m_len;
 }
 void COMPILE::vardef(int i = 0) {//var 분석
@@ -41,7 +41,7 @@ void COMPILE::vardef(int i = 0) {//var 분석
 		else if (exe.findfsym(buf,exe.symtable[nfunc].mem))throw OVERIDENT;
 		NEXT;
 		mem = exe.pushsym(buf, nfunc);
-		bytecode.push({ op_lstore, exe.symtable[mem].mem });
+		bytecode.push( op_lstore, exe.symtable[mem].mem );
 		return;
 	}
 	do { // var i = 0, i=10,
@@ -56,9 +56,9 @@ void COMPILE::vardef(int i = 0) {//var 분석
 			term();
 		}
 		else {
-			bytecode.push({ op_push, 0 });
+			bytecode.push( op_push, 0 );
 		}
-		bytecode.push({ op_lstore, exe.symtable[mem].mem });
+		bytecode.push( op_lstore, exe.symtable[mem].mem );
 	} while (t.typ == _Comma);
 }
 int COMPILE::identdef(int i = 0) {//식별자 호출 또는 대입 검사.
@@ -74,9 +74,9 @@ int COMPILE::identdef(int i = 0) {//식별자 호출 또는 대입 검사.
 			term();
 		}
 		else {
-			bytecode.push({ op_push, 0 });
+			bytecode.push( op_push, 0 );
 		}
-		bytecode.push({ op_lstore, exe.symtable[mem].mem });
+		bytecode.push( op_lstore, exe.symtable[mem].mem );
 		return 1;
 	}
 	int n;
@@ -87,12 +87,12 @@ int COMPILE::identdef(int i = 0) {//식별자 호출 또는 대입 검사.
 	else typ = op_lstore;
 	NEXT;
 	if (t.typ == _Array) {
-		bytecode.push({ (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem });
+		bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
 		while (t.typ == _Array) {
 			NEXT;
 			term();
 			if (t.typ != _Arrayend)throw BADARRAY;
-			bytecode.push({ op_set });
+			bytecode.push( op_set );
 			NEXT;
 		}
 	
@@ -102,7 +102,7 @@ int COMPILE::identdef(int i = 0) {//식별자 호출 또는 대입 검사.
 		}
 	}
 	else if (t.typ == _Brack) {
-		bytecode.push({ (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem });
+		bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
 		do{
 			NEXT;
 			if (t.typ == _Brackend) {
@@ -114,58 +114,58 @@ int COMPILE::identdef(int i = 0) {//식별자 호출 또는 대입 검사.
 		} while (t.typ == _Comma);
 		if (t.typ != _Brackend)throw BADSTATE;
 		NEXT;
-		bytecode.push({ op_call, arg });
-		bytecode.push({ op_pop });
+		bytecode.push( op_call, arg );
+		bytecode.push( op_pop );
 		
 	}
 	else if (t.typ == _Equal) {
 		NEXT;
 		term();
-		bytecode.push({ typ, exe.symtable[n].mem });
+		bytecode.push( typ, exe.symtable[n].mem );
 	}
 	else {
 		switch (t.typ) {
 		case _Add:
-			bytecode.push({ (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem });
+			bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
 			NEXT;
 			term();
-			bytecode.push({ op_add });
-			bytecode.push({ typ, exe.symtable[n].mem });
+			bytecode.push( op_add );
+			bytecode.push( typ, exe.symtable[n].mem );
 			break;
 		case _Sub:
-			bytecode.push({ (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem });
+			bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
 			NEXT;
 			term();
-			bytecode.push({ op_sub });
-			bytecode.push({ typ, exe.symtable[n].mem });
+			bytecode.push( op_sub );
+			bytecode.push( typ, exe.symtable[n].mem );
 			break;
 		case _Mul:
-			bytecode.push({ (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem });
+			bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
 			NEXT;
 			term();
-			bytecode.push({ op_mul });
-			bytecode.push({ typ, exe.symtable[n].mem });
+			bytecode.push( op_mul );
+			bytecode.push( typ, exe.symtable[n].mem );
 			break;
 		case _Div:
-			bytecode.push({ (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem });
+			bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
 			NEXT;
 			term();
-			bytecode.push({ op_div });
-			bytecode.push({ typ, exe.symtable[n].mem });
+			bytecode.push( op_div );
+			bytecode.push( typ, exe.symtable[n].mem );
 			break;
 		case _Mod2:
-			bytecode.push({ (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem });
+			bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
 			NEXT;
 			term();
-			bytecode.push({ op_mod });
-			bytecode.push({ typ, exe.symtable[n].mem });
+			bytecode.push( op_mod );
+			bytecode.push( typ, exe.symtable[n].mem );
 			break;
 		case _Pow2:
-			bytecode.push({ (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem });
+			bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
 			NEXT;
 			term();
-			bytecode.push({ op_pow });
-			bytecode.push({ typ, exe.symtable[n].mem });
+			bytecode.push( op_pow );
+			bytecode.push( typ, exe.symtable[n].mem );
 			break;
 		}
 	}
@@ -181,7 +181,7 @@ void COMPILE::state() {//문장 분석
 		NEXT;
 		term();
 		if (nfunc > 0) {
-			bytecode.push({ op_return });
+			bytecode.push( op_return );
 		}
 		else throw BADRETURN;
 		break;
@@ -247,7 +247,7 @@ void COMPILE::state() {//문장 분석
 			term();
 			arg++;
 		} while (t.typ == _Comma);
-		bytecode.push({ op_print, arg });
+		bytecode.push( op_print, arg );
 		break;
 	case _out://출력문 분석
 		do {
@@ -256,7 +256,7 @@ void COMPILE::state() {//문장 분석
 			term();
 			arg++;
 		} while (t.typ == _Comma);
-		bytecode.push({ op_out, arg });
+		bytecode.push( op_out, arg );
 		break;
 	case _include://include 문
 		throw NOTYET;
@@ -296,7 +296,7 @@ void COMPILE::state() {//문장 분석
 		funcdef();//함수 쓰지 마셈. 오류 걸림
 		break;
 	case _skip://이거 안 됨. ㅅㄱ
-		bytecode.push({op_jmp, skippoint);
+		bytecode.push(op_jmp, skippoint);
 		NEXT;
 		break;
 	case _for://이거 안 됨. ㅅㄱ

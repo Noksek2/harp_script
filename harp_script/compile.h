@@ -7,16 +7,61 @@
 
 #define NEXT t=tok.back().next() //tok.back()하면 되는데 1년전에는 그걸 모름. 병진
 
+//template<typename K, typename V, const int CAPA>
+//struct TinyHashTable {
+//	K keymap[CAPA];
+//	V keyval[CAPA];
+//	uint32_t keyhash[CAPA];
+//	void Init() {
+//		memset(keymap, 0, sizeof(uint8_t) * CAPA);
+//		memset(keyhash, 0, sizeof(uint32_t) * CAPA);
+//	}
+//
+//	static inline uint32_t gethash(const wchar* name) {
+//		uint32_t len = wcslen(name);
+//		uint32_t hash;
+//		for (uint32_t idx = 0; idx < len; idx++)
+//		{
+//			hash ^= name[idx];
+//			hash *= 16777619; // FNV prime
+//		}
+//		if (hash == 0u) return 1u;
+//		return hash;
+//	}
+//	void emplace(const wchar* name, uint8_t toktype) {
+//		uint32_t kh = gethash(name);
+//		const uint32_t o_idx = kh % 128;
+//		uint32_t idx = o_idx;
+//		while (idx < CAPA) {
+//			if (keyhash[idx] == kh) {
+//
+//				idx++;
+//			}
+//		}
+//		idx = 0;
+//		while (idx < o_idx) {
+//		}
+//		Harp_assert(, "TinyHashTable emplace Error");
+//	}
+//	bool find(uint8_t& type, const wchar* name) {
+//		name
+//			uint32_t idx = find_idx();
+//
+//	}
+//};
 class KEY {
 public:
-	std::umap<std::wstring, uchar>typestr;
+	std::umap<std::wstring, ttype>typestr;
+	//KeyFinder typestr;
 	KEY() {
+		//typestr.Init();
 		/*함수*/
 		typestr.emplace(L"func", _func);
 
 		/*입출력*/
 		typestr.emplace(L"print", _print);
 		typestr.emplace(L"out", _out);
+		typestr.emplace(L"put", _out);
 
 		/*조건문*/
 		typestr.emplace(L"if", _if);
@@ -37,6 +82,7 @@ public:
 		/*분기*/
 		typestr.emplace(L"break", _break);
 		typestr.emplace(L"skip", _skip);
+		typestr.emplace(L"redo", _skip);
 
 		/*함수 리턴*/
 		typestr.emplace(L"return", _return);
@@ -89,11 +135,11 @@ public:
 		typestr.emplace(L"!=", _Not2);
 		typestr.emplace(L"=>", _default);
 	}
-	char findkey(wstring s) {//키워드 찾는 함수
-		return (typestr.find(s) != typestr.end() ? typestr[s] : _Ident);
+	ttype findkey(const wstring& s) {//키워드 찾는 함수
+		return (ttype)(typestr.find(s) != typestr.end() ? typestr[s] : _Ident);
 	}
-	char findgiho(wstring s) {//기호 찾는 함수
-		return (typestr.find(s) != typestr.end() ? typestr[s] : _Error);
+	ttype findgiho(const wstring& s) {//기호 찾는 함수
+		return (ttype)(typestr.find(s) != typestr.end() ? typestr[s] : _Error);
 	}
 	//라고는 썼지만 두 함수 차이를 모르겠음.
 
@@ -105,9 +151,9 @@ public:
 /*토큰 구조체*/
 struct token {
 	wstring s;
-	uint8_t typ;
+	ttype typ;
 	token() {}
-	token(wstring ss, uint8_t t) :s(ss), typ(t) {}
+	token(const wstring& ss, ttype t) :s(ss), typ(t) {}
 };
 
 class LEXER {
@@ -210,7 +256,7 @@ public:
 			c = get();
 			s += c;
 			if (key.findgiho(s) != _Error) {
-				c = get(); return token(s, key.typestr[s]);
+				c = get(); return token(s, (ttype)key.typestr[s]);
 			}
 			s.pop_back();
 			return token(s, key.findgiho(s));
@@ -221,72 +267,145 @@ public:
 		source.clear();
 	}
 };
-class COMPILE :public ERRORMSG {//에러 클래스를 상속받음.
+struct PolishStack{
+#ifdef _DEBUG
+	MyStack<optype>opstack;
+#else
+	MyStack<uint8_t>stack;
+#endif
+	optype asmgiho[TOK_MAX]; // TOKEN -> OP
+	uint8_t oprank[OP_MAX]; // RANK OF OP
+	void Init() {
+		memset(asmgiho, 0, TOK_MAX);
+		memset(oprank, 0, OP_MAX);
+
+		asmgiho[ttype::_Plus] = optype::op_add;
+		asmgiho[ttype::_Minus] = optype::op_sub;
+		asmgiho[ttype::_Multi] = optype::op_mul;
+		asmgiho[ttype::_Divi] = optype::op_div;
+		asmgiho[ttype::_Pow] = optype::op_pow;
+		asmgiho[ttype::_Mod] = optype::op_mod;
+		asmgiho[ttype::_Big] = optype::op_gt;
+		asmgiho[ttype::_Less] = optype::op_lt;
+		asmgiho[ttype::_Bigis] = optype::op_gte;
+		asmgiho[ttype::_Lessis] = optype::op_lte;
+		asmgiho[ttype::_Equal2] = optype::op_eq;
+		asmgiho[ttype::_Not2] = optype::op_neq;
+		asmgiho[ttype::_And] = optype::op_and;
+		asmgiho[ttype::_Or] = optype::op_or;
+
+		//asmgiho[ttype::_Add]  = optype::op_add;
+		//asmgiho[ttype::_Sub]  = optype::op_sub;
+		//asmgiho[ttype::_Mul]  = optype::op_mul;
+		//asmgiho[ttype::_Div]  = optype::op_div;
+		//asmgiho[ttype::_Mod2] = optype::op_modeq;
+		//asmgiho[ttype::_Pow2] = optype::op_poweq;
+
+		/*연산자 우선순위*/
+		oprank[optype::op_pow] = 1;
+		oprank[optype::op_mul]
+			= oprank[optype::op_div]
+			= oprank[optype::op_mod]
+			= 2;
+		oprank[optype::op_add]
+			= oprank[optype::op_sub]
+			= 3;
+		oprank[optype::op_gt]
+			= oprank[optype::op_gte]
+			= oprank[optype::op_lte]
+			= oprank[optype::op_lt]
+			= 4;
+		oprank[optype::op_neq]
+			= oprank[optype::op_eq]
+			= 5;
+		oprank[optype::op_and] = 6;
+		oprank[optype::op_or] = 7;
+	}
+	void Clear() {
+		opstack.m_len = 0u;
+	}
+	void push(ttype t) {
+		if(t==_Brack){
+			opstack.push(rank_brack);
+			//oprank[opt] = t;
+		}
+		else {
+			optype opt = (optype)asmgiho[(uint8_t)t];
+			opstack.push(opt);
+		}
+	}
+	optype pop() {
+		return opstack.pop();
+	}
+	uint32_t isEmpty() {
+		return opstack.m_len == 0;
+	}
+	bool isOp(ttype t) {
+		return asmgiho[t] != 0;
+	}
+
+	const bool isRightOp(optype opt) const {
+		if (opt == optype::op_pow) { return true; }
+		if (opt == optype::op_min) { return true; }
+		else return false;
+	}
+	const bool checkPop(optype tt, optype opt) const {//true면 계속 pop 진행
+		if (tt == rank_brack) return false;
+		if (isRightOp(opt)) { 
+			if (oprank[tt] > oprank[opt]) return false;
+		}//Right : + == **, ** == **
+		//300 ** 500 ** --30(300 500 30 -- ** ** 
+		else if (oprank[tt] >= oprank[opt]) return false;
+		return true;
+	}
+
+	/*역폴란드 표기법 분석*/
+	bool deletebrack() {
+		while (opstack.m_len) {
+			if(opstack.top() != rank_brack) 
+				bytecode.push(opstack.pop(), 0);
+			else {
+				opstack.m_len--; return true;
+			}
+		}
+		return false;
+	}
+	void tostack(ttype tt) {
+		optype opt = asmgiho[(uint8_t)tt];
+		optype c;
+		while (opstack.m_len != 0) {
+			c = opstack.top(); //* >= + -> 
+			if (!checkPop(c, opt))break;
+			bytecode.push(c, 0);
+			opstack.m_len--;
+		}
+		opstack.push(opt);
+	}
+};
+class COMPILE {//에러 클래스를 상속받음.
 private:
+	PolishStack polstack;
+	vector<LEXER>tok;
 	int nmod;
 	uint32_t loopcount;
 	uint32_t skippoint; //
 	uint32_t nfunc; //n
-	vector<LEXER>tok;
+	
 	token t;
-	MyStack<uint8_t>gihostack;
-	uint8_t asmgiho[TOK_MAX]; // TOKEN -> OP
-	uint8_t gihorank[OP_MAX]; // RANK OF OP
+	
+	
 	//바이트 코드 변환 때문에 뭔가 더러움
 	
 public:
 	COMPILE() {
+		polstack.Init();
 		exe.usefunc(L"basic");
 
 		loopcount = 0;
 		skippoint = 0U;
 		nfunc = 0;
 		nmod = -1;
-		for (int i = 0; i < OP_MAX; i++) {
-			asmgiho[i] = gihorank[i] = 0;
-		}
 		
-		asmgiho[ttype::_Plus]  = optype::op_add;
-		asmgiho[ttype::_Minus] = optype::op_sub;
-		asmgiho[ttype::_Multi] = optype::op_mul;
-		asmgiho[ttype::_Divi]  = optype::op_div;
-		asmgiho[ttype::_Pow]   = optype::op_pow;
-		asmgiho[ttype::_Mod]   = optype::op_mod;
-		asmgiho[ttype::_Big]   = optype::op_gt;
-		asmgiho[ttype::_Less]  = optype::op_lt;
-		asmgiho[ttype::_Bigis] = optype::op_gte;
-		asmgiho[ttype::_Lessis]= optype::op_lte;
-		asmgiho[ttype::_Equal2]= optype::op_eq;
-		asmgiho[ttype::_Not2]  = optype::op_neq;
-		asmgiho[ttype::_And]   = optype::op_and;
-		asmgiho[ttype::_Or]    = optype::op_or;
-
-		asmgiho[ttype::_Add]  = optype::op_add;
-		asmgiho[ttype::_Sub]  = optype::op_sub;
-		asmgiho[ttype::_Mul]  = optype::op_mul;
-		asmgiho[ttype::_Div]  = optype::op_div;
-		asmgiho[ttype::_Mod2] = optype::op_modeq;
-		asmgiho[ttype::_Pow2] = optype::op_poweq;
-
-		/*연산자 우선순위*/
-		gihorank[optype::op_pow] = 1;
-		gihorank[optype::op_mul]
-			= gihorank[optype::op_div]
-			= gihorank[optype::op_mod]
-			= 2;
-		gihorank[optype::op_add]
-			= gihorank[optype::op_sub]
-			= 3;
-		gihorank[optype::op_gt]
-			= gihorank[optype::op_gte]
-			= gihorank[optype::op_lte]
-			= gihorank[optype::op_lt]
-			= 4;
-		gihorank[optype::op_neq]
-			= gihorank[optype::op_eq]
-			= 5;
-		gihorank[optype::op_and] = 6;
-		gihorank[optype::op_or] = 7;
 	}
 	int factor();//항
 	void block() {//블록
@@ -301,7 +420,6 @@ public:
 		}
 		else state();
 	}
-	void deletebrack();
 	void funcdef();
 	void term();
 	void express();
@@ -312,16 +430,16 @@ public:
 	void ifblock() {//if문 분석... 노답;
 		//바이트 코드 만드는 부분. 더러워서 패스
 		//static MyStack<int>sp;
-		const int sp_maxcnt = 512;
+		constexpr int sp_maxcnt = 256;
 		int sp[sp_maxcnt] = { 0 ,};
 		int sp_idx = 0;
 
 		NEXT;
 		term();
-		bytecode.push({ op_ujmp, 0 });
-		int s = bytecode.m_len - 1;
+		bytecode.push( op_ujmp, 0 );
+		uint32_t s = bytecode.m_len - 1;
 		block();//블록 호출
-		bytecode.push({ op_jmp, 0 });
+		bytecode.push( op_jmp, 0 );
 		sp[sp_idx++] = bytecode.m_len - 1;
 		bytecode[s].opr = bytecode.m_len;
 
@@ -329,10 +447,10 @@ public:
 		while (t.typ == _elif) {
 			NEXT;
 			term();
-			bytecode.push({ op_ujmp, 0 });
+			bytecode.push( op_ujmp, 0 );
 			s = bytecode.m_len - 1;
 			block();//블록 호출
-			bytecode.push({ op_jmp, 0 });
+			bytecode.push( op_jmp, 0 );
 			if (sp_idx >= sp_maxcnt) throw TOOMANY;
 			sp[sp_idx++] = bytecode.m_len - 1;
 			bytecode[s].opr = bytecode.m_len;
@@ -354,11 +472,11 @@ public:
 		term();
 
 		int s = bytecode.m_len;
-		bytecode.push({ op_ujmp });
+		bytecode.push( op_ujmp );
 		loopcount++;
 		block();//블록 호출
 		loopcount--;
-		bytecode.push({ op_jmp, skippoint });
+		bytecode.push( op_jmp, skippoint );
 		skippoint = oldpoint;
 		bytecode[s].opr = bytecode.m_len;
 	}
@@ -382,26 +500,26 @@ public:
 			term();
 		}
 		else {
-			bytecode.push({ op_push });
+			bytecode.push( op_push );
 		}
-		bytecode.push({ type, exe.symtable[n].mem });
+		bytecode.push( type, exe.symtable[n].mem );
 
 		if (t.typ != _Comma)throw NOCOMMA;
 		int oldpoint = skippoint;
 		skippoint = bytecode.m_len;
-		bytecode.push({ (type == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem });
+		bytecode.push( (type == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
 		NEXT;
 		term();
-		bytecode.push({ op_lt });
-		bytecode.push({ op_ujmp, 0 });
+		bytecode.push( op_lt );
+		bytecode.push( op_ujmp, 0 );
 		s = bytecode.m_len - 1;
 		loopcount++;
 		block();//블록 호출
-		bytecode.push({ op_push, 1 });
-		bytecode.push({ (type == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem });
-		bytecode.push({ op_add });
-		bytecode.push({ type, exe.symtable[n].mem });
-		bytecode.push({op_jmp, skippoint});
+		bytecode.push( op_push, 1 );
+		bytecode.push( (type == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
+		bytecode.push( op_add );
+		bytecode.push( type, exe.symtable[n].mem );
+		bytecode.push(op_jmp, skippoint);
 		loopcount--;
 		skippoint = oldpoint;
 		bytecode[s].opr = bytecode.m_len;
@@ -409,7 +527,7 @@ public:
 	}
 	void compile(const wchar* dir) {//파일 불러오고 분석 시작
 		ifstream in(dir);
-		if (!in.is_open()) { error(dir, NOFILE, 0); /*throw NOFILE;*/return; }
+		if (!in.is_open()) { ERRORMSG::puterror(dir, NOFILE, 0); /*throw NOFILE;*/return; }
 		in.seekg(0, ios::end);
 		string str;
 		int size = (int)in.tellg();
@@ -429,15 +547,15 @@ public:
 				state(); //문장 분석
 			}
 			catch (errortype msg) { //예외 처리
-				error(t.s, msg, tok.back().line);
+				ERRORMSG::puterror(t.s, msg, tok.back().line);
 				tok.back().error = 1;
 				NEXT;
 			}
 		}
 		tok.pop_back();
 	}
-	void tostack(uint8_t i);
 	~COMPILE() {
+		polstack.Clear();
 		tok.clear();
 	}
 };

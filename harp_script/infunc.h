@@ -3,7 +3,6 @@
 #include "harpdata.h"
 
 enum infunctype {
-
 	f_type,		//type()
 	f_types,		//types()
 	f_get,		//get()
@@ -91,7 +90,7 @@ enum infunctype {
 	f_ifsound,
 	f_rgb,
 	f_dxlib_end,
-
+	INFUNC_IDX_MAX = _64KB-1,
 };
 //dxlib.dll에 있는 함수
 

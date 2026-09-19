@@ -5,13 +5,20 @@
 
 // dats = stack[len]
 
+
 struct codeset {
 	uint32_t op : 8;
 	uint32_t opr : 24;
-	codeset() { op = optype::op_ang, opr = 0; }
-	codeset(uint8_t _op, uint32_t _opr = 0) : op(_op), opr(_opr) {}
+	void Set(uint8_t _op, uint32_t _opr = 0) { op = _op; opr = _opr; }
 };
-typedef MyStack<codeset> Bytecode;
+class Bytecode : public MyStack<codeset> {
+public:
+	void push(uint8_t _op, uint32_t _opr = 0u) {
+		codeset set;
+		set.Set(_op, _opr);
+		MyStack<codeset>::push(set);
+	}
+};
 
 extern Bytecode bytecode;
 struct symbol {//심볼 테이블 구조체
@@ -38,7 +45,7 @@ public:
 	template<typename T>
 	inline void lit_push(const T& val) {
 		harpdata h;
-		h.byte = ENCODE_INT(val);
+		h.SetInt(val);
 		lit.push(h);
 	}
 	inline void lit_push(int64_t val) {
@@ -117,7 +124,7 @@ public:
 		symmap[0].emplace(s, (uint32_t)symtable.size());
 		symtable.emplace_back(SInFnc, symtable[0].frame, t, 0);
 		symtable[0].frame++;
-		bytecode.push({ op_pushinfunc, (uint32_t)symtable.size() - 1 });
+		bytecode.push(op_pushinfunc, (uint32_t)symtable.size() - 1 );
 	}
 	template<typename T>
 	void pushenum(const wstring& b, const T& val) {

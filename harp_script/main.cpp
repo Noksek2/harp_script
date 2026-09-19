@@ -6,7 +6,11 @@ lol
 */
 #include "compile.h"
 #include <time.h>
+
+RandomDevice* g_randdev;
 Bytecode bytecode;//아마도 바이트코드
+
+
 void PrintBytecode() {
 	const char* opp[100] = { 0 };
 	opp[op_push] = "PUSH";
@@ -61,7 +65,7 @@ void PrintBytecode() {
 	out << "no	type	mem	func	frame\n";
 	char buf[][7] = {"Var","Func","InFunc"};
 	int buf_no;
-	for (int i = 0; i < exe.symtable.size(); i++) {
+	for (uint32_t i = 0; i < exe.symtable.size(); i++) {
 		switch (exe.symtable[i].t) {
 		case SVar: buf_no = 0; break;
 		case SFunc:buf_no = 1; break;
@@ -71,7 +75,7 @@ void PrintBytecode() {
 			<< exe.symtable[i].func << "\t" << exe.symtable[i].frame << "\n";
 	}
 	out << "\n\n\n========bytecode========\n";
-	for (int i = 0; i < bytecode.m_len; i++) {
+	for (uint32_t i = 0; i < bytecode.m_len; i++) {
 		out << opp[bytecode[i].op] << " " << bytecode[i].opr << "\n";
 	}
 }
@@ -79,6 +83,7 @@ void PrintBytecode() {
 enum RunFlag {
 	RunFlag_Dis,//printbytecode
 	RunFlag_Debug,
+	RunFlag_Eng,
 	MAX_FLAG = 128,
 };
 bool g_runflags[MAX_FLAG];
@@ -99,14 +104,30 @@ void check_argv(COMPILE* compile,int argc, wchar** argv, bool& b_outfile) {
 		}*/
 	}
 }
+void HarpContext_Init() {
+	g_randdev = new RandomDevice();
+}
+void HarpContext_Delete(){
+	if (g_randdev) {
+		delete g_randdev;
+		g_randdev = NULL;
+	}
+}
+void HaroContext_SetFlagDefault() {
+	g_runflags[RunFlag_Dis] = true;
+	g_runflags[RunFlag_Eng] = true;
+}
 int wmain(int argc, wchar** argv) {
-	puts("Harp Script v0.1.1 (Nok Lang g0.3)");
+	HarpContext_Init();
+	HarpContext_Delete();
+
+	puts("Harp Script v0.2.0 (Nok Lang g0.3)");
 	//For Korean
 	wcin.imbue(locale("kor"));
 	wcout.imbue(locale("kor"));
 	COMPILE compile;
 	
-	g_runflags[RunFlag_Dis] = true;
+	
 	if (argc == 1) {
 		{
 			wcout << ">>";
@@ -123,7 +144,7 @@ int wmain(int argc, wchar** argv) {
 	
 	exe.endcompile();
 	
-	if (compile.err_cnt == 0U) {
+	if (ERRORMSG::err_cnt == 0U) {
 		if (g_runflags[RunFlag_Dis]) PrintBytecode();
 		clock_t start, end;
 		start = clock();

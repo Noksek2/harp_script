@@ -111,6 +111,10 @@ public:
 		}
 
 	}
+	void push() {
+		reserve(m_len + 1);
+		m_len++;
+	}
 	void push(const T& dat) {
 		if (m_len == m_capa) {
 			m_capa <<= 1;
@@ -206,7 +210,7 @@ public:
 		if (freeobj == NULL)
 			ptr->next = 0u;
 		else {
-			ptr->next = freeobj - &objs[0];
+			ptr->next = (uint32_t)(freeobj - &objs[0]);
 		}
 		
 		freeobj = ptr;

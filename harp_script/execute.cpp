@@ -4,6 +4,10 @@ EXECUTE exe;
 MemoryInfo g_meminfo;
 /* 그냥 C 함수들 */
 /*바이트 코드 분석하는 곳*/
+static void Exec_func_call(harpfunc_p fn, harpdata* N, uint32_t para_len) {
+	N[0] = fn(N, para_len);
+	//N[0].SetErr(rte_call_failed);
+}
 void EXECUTE::run() {
 	uint8_t op;
 	uint32_t opr;
@@ -14,7 +18,7 @@ void EXECUTE::run() {
 		op = bytecode[line].op;
 		opr = bytecode[line].opr;
 		switch (op) {
-		case op_push:
+		case op_push:case op_lit:
 			opstack.push(lit[opr]);
 			break;
 		case op_pop:
@@ -40,35 +44,44 @@ void EXECUTE::run() {
 		//	default:opstack.push(0);
 		//	}
 		//	break;
-		case op_lit:
-			opstack.push(lit[opr]);
+		//case op_lit:
+		//	opstack.push(lit[opr]);
+		//	break;
+		case op_call: {
+			Harp_assert(opstack.m_len > opr, "[RE] call error : dats_len is more than para_len");
+			harpdata* pN;
+			pN = &opstack[opstack.m_len - opr - 1];
+			n1 = *pN; 
+			switch (n1.GetType()) {
+			case TInFnc: {
+				uint64_t fnval = DECODE_VAL(n1);
+				if (fnval < INFUNC_IDX_MAX) {
+					const infunctype intyp = (infunctype)fnval;
+					infunc_call(intyp, pN +1, opr);
+				}
+				else {
+					harpfunc_p fnptr = (harpfunc_p)(void*)fnval;
+					//funcmem.push(base);
+					//funcmem.push(line);
+					//base = nframe;
+					Exec_func_call(fnptr, pN+1, opr);
+					//line = symtable[n1.d.i].func - 1;
+					//
+					//nframe += symtable[n1.d.i].frame;
+					//mem.resize(nframe);
+				}
+
+				break;
+			}
+			case TFnc: {
+				break;
+			}
+			default:
+				pN[0].SetErr(rte_infunc_unknown);
+			}
+			opstack.m_len -= opr;
 			break;
-		case op_call:
-			Harp_assert(opstack.m_len >= opr, "[RE] call error : dats_len is more than para_len");
-			//
-			//for (uint32_t i = 0; i < opr; i++) {
-			//	mstack.push(opstack.pop());
-			//}
-			//n1 = opstack.pop();
-			//switch (n1.type) {
-			//case Func:
-			//	for (uint32_t i = 0; i < opr; i++) {
-			//		opstack.push(mstack.m_stack[i]);
-			//	}	mstack.m_len = 0;
-			//	funcmem.push(base);
-			//	funcmem.push(line);
-			//	line = symtable[n1.d.i].func - 1;
-			//	base = nframe;
-			//	nframe += symtable[n1.d.i].frame;
-			//	mem.resize(nframe);
-			//	break;
-			//case Infunc:
-			//	infunc_call(symtable[n1.GetInt()])
-			//	callinfunc(symtable[n1.d.i].func);
-			//	mstack.m_len = 0;
-			//	break;
-			//}
-			//break;
+		}
 		case op_return:
 			line = funcmem.pop();
 			base = funcmem.pop();
@@ -118,8 +131,6 @@ void EXECUTE::run() {
 		case op_gte:
 		case op_eq:	
 		case op_neq:
-		case op_not:
-		case op_min:
 		case op_and:
 		case op_or:	
 		case op_pow: {
@@ -128,15 +139,21 @@ void EXECUTE::run() {
 			opstack[n - 1] = harpdata_calc(opstack[n - 1], opstack[n], op);
 			break;
 		}
+		case op_not:
+		case op_min: {
+			uint32_t n = opstack.m_len;
+			opstack[n - 1] = harpdata_calc_1(opstack[n - 1], op);
+			break;
+		}
 		case op_print:
-			for (int i = opstack.m_len - opr; i < opstack.m_len; i++) {
+			for (uint32_t i = opstack.m_len - opr; i < opstack.m_len; i++) {
 				opstack[i].Print();
 			}
 			opstack.m_len -= opr;
 			cout << '\n';
 			break;
 		case op_out:
-			for (int i = opstack.m_len - opr; i < opstack.m_len; i++) {
+			for (uint32_t i = opstack.m_len - opr; i < opstack.m_len; i++) {
 				opstack[i].Print();
 			}
 			opstack.m_len -= opr;

@@ -11,20 +11,20 @@ enum vartype {
     TFloat = 0U,
 
     TError = 1U,
-    TNull = 1U | 8,
+    TUnq = 1U | 8,//unique type
     TInt = 2U | 8,
     TObj = 3U | 8,
     TStr = 4U | 8,
     TFnc = 5U | 8,
-
+    TInFnc = 6U | 8,
 };
 
 enum optype :uint8_t {
-    op_push,
-    op_pop,
-    op_call,
-    op_incall,
-    op_lit,
+    op_push, //push lit_idx , stack <== lit[lit_idx]
+    op_pop, //pop 
+    op_call, // call [para_len], stack.pop()(stack.pop() * para_len)
+    op_incall, 
+    op_lit, //
     op_lvar,
     op_gvar,
     op_lstore,
@@ -38,6 +38,7 @@ enum optype :uint8_t {
     op_set,
     op_sets,
     op_at,
+    op_atm,//at member
     op_array,
     op_jmp,
     op_ujmp,
@@ -61,6 +62,7 @@ enum optype :uint8_t {
     op_not,
     op_print,
     op_out,
+    op_dbgprint,
 
     op_addeq,
     op_subeq,
@@ -68,17 +70,14 @@ enum optype :uint8_t {
     op_diveq,
     op_modeq,
     op_poweq,
-
-    op_ang = 50,
+    op_checktyp,
+    op_mkstr,
+    op_ang = 99,
 
     rank_brack = 100,
-    OP_MAX = 100,
+    OP_MAX = 127,
 };
 
-
-enum rterrtype {
-    rte_calc_failed,
-};
 enum harpobjtype {
     objt_null,
     objt_str,
@@ -98,9 +97,6 @@ typedef struct harpobj harpobj;
 typedef struct harpstr_d harpstr_d;
 typedef harpstr_d* harpstr;
 typedef harplist_d* harplist;
-struct harpfunc {
-    harpobj* name;
-};
 
 struct harpstr_d {
     uint32_t len;
@@ -179,31 +175,51 @@ struct harpdata {
         void* v;
         struct harpobj* obj;
     };
+    
     inline void SetInt(int64_t i);
     inline void SetFloat(double d);
     inline void SetObj(harpobj* obj);
     inline void SetBool(bool b);
-    
-    inline int64_t GetInt();
-    inline harpstr GetStr();
-    bool isTrue();
+    inline void SetErr(rterrtype);
+
+
+    inline const int64_t GetInt()const;
+    inline const harpstr GetStr()const;
+    const bool isTrue() const;
     inline void IncRC();
-    inline void decRC();
+    inline void DecRC();
     void Print();
     void DebugPrint();
-    
+    inline const uint32_t GetType() const;
+};
+
+struct harptype {
+    uint8_t TagType;
+    uint8_t _;
+    uint16_t ObjType;//obj 
+};
+typedef const harpdata(*harpfunc_p) (const harpdata*, const uint32_t);
+struct harpfunc {
+    harpfunc_p fn;
+    harpstr* name;
+    uint8_t frame_len;
+    uint8_t para_len;
+    uint8_t types[8];//0 1 2 3 4 5 6 7 8 p=parent() c=child() s:parent
+    harptype types_etc[];
 };
 
 
+//dtype objtype
+//인수 최대 4개
 
 constexpr uint64_t TAG_INT = (NAN_MARK | ((uintptr_t)TInt << 48));
 constexpr uint64_t TAG_OBJ = (NAN_MARK | ((uintptr_t)TObj << 48));
 constexpr uint64_t TAG_STR = (NAN_MARK | ((uintptr_t)TStr << 48));
 constexpr uint64_t TAG_FNC = (NAN_MARK | ((uintptr_t)TFnc << 48));
-constexpr uint64_t TAG_NULL = (NAN_MARK | ((uintptr_t)TNull << 48));
+constexpr uint64_t TAG_UNQ = (NAN_MARK | ((uintptr_t)TUnq << 48));
 constexpr uint64_t TAG_ERR = (SNAN_MARK | ((uintptr_t)TError << 48));
 
-constexpr uint64_t GET_TAGNO(const harpdata V) {
+constexpr uint32_t GET_TAGNO(const harpdata V) {
     return ((((V).byte) & 0x000F000000000000ULL) >> 48);
 }
 constexpr uint64_t CHECK_TAG(const harpdata V) {
@@ -220,8 +236,8 @@ constexpr uint64_t CHECK_INF(const harpdata V) {
 }
 constexpr bool IF_INT(const harpdata V) { return ((CHECK_TAG(V)) == TAG_INT); }
 constexpr bool IF_OBJ(const harpdata V) { return ((CHECK_TAG(V)) == TAG_OBJ); }
-constexpr bool IF_NULL(const harpdata V) {
-    return ((CHECK_TAG(V)) == TAG_NULL);
+constexpr bool IF_UNQ(const harpdata V) {
+    return ((CHECK_TAG(V)) == TAG_UNQ);
 }
 
 constexpr bool IF_FLOAT(const harpdata V) {
@@ -236,6 +252,11 @@ constexpr bool IF_ERR(const harpdata V) {
 }
 
 #define IF_INT_NEG(V) ((V).byte&0x0000800000000000)
+constexpr uint64_t HARP_TRUE = (TAG_UNQ | 1);
+constexpr uint64_t HARP_FALSE = (TAG_UNQ | 0);
+
+#define ENCODE_BOOL(t) (t?HARP_TRUE:HARP_FALSE)
+
 
 constexpr uint64_t ENCODE_INT32(uint32_t i) {
     return 	(TAG_INT | (uint64_t)(i));
@@ -243,14 +264,16 @@ constexpr uint64_t ENCODE_INT32(uint32_t i) {
 constexpr uint64_t ENCODE_INT(uint64_t i) { return  (TAG_INT | ((uint64_t)(i)&BIT_48)); }
 constexpr uint64_t ENCODE_OBJ(void* p) { return  (TAG_OBJ | ((uint64_t)(p)&BIT_48)); }
 //constexpr uint64_t ENCODE_STR(const harpdata d) { return (TAG_STR | (d.byte)); }
-constexpr uint64_t ENCODE_ERR(uint32_t i) { return  (TAG_ERR | ((uint32_t)(i))); }
+constexpr uint64_t ENCODE_ERR(rterrtype i) { return  (TAG_ERR | ((uint32_t)(i))); }
 
 
 constexpr uint32_t DECODE_INT32(const harpdata V) {
     return ((int32_t)((V).byte & 0xFFFFFFFF));
 }
 
+#define DECODE_VAL(V) ((V).byte&BIT_48)
 #define DECODE_INT(V) ((int64_t)((V).byte&BIT_48))
+#define DECODE_INT_V(I) ((int64_t)((I)&BIT_48))
 
 #define DEC_NORM_INT(V) IF_INT_NEG(V)?\
     (((int64_t)((V).byte&BIT_48))|0xFFFF000000000000)\
@@ -273,20 +296,32 @@ inline void harpdata::SetObj(harpobj* obj) {
 inline void harpdata::SetBool(bool b) {
     byte = ENCODE_INT(b);
 }
+inline void harpdata::SetErr(rterrtype e) {
+    byte = ENCODE_ERR(e);
+}
 
-inline int64_t harpdata::GetInt() {
+inline const int64_t harpdata::GetInt()const {
     return DEC_NORM_INT(*this);
 }
-inline harpstr harpdata::GetStr() {
+inline const harpstr harpdata::GetStr() const {
     return DECODE_OBJ(*this)->u.s;
 }
-bool harpdata::isTrue() {
-    return false;
+inline const bool harpdata::isTrue() const {
+    //if (byte == HARP_TRUE) {
+    //    return true;
+    //}
+    if (byte == HARP_FALSE) {
+        return false;
+    }
+    if (IF_OBJ(*this)) {
+        return DECODE_OBJ(*this)->u.p != NULL;
+    }
+    return true;
 }
 inline void harpdata::IncRC() {
     if (IF_OBJ(*this)) DECODE_OBJ(*this)->IncRC();
 }
-inline void harpdata::decRC() {
+inline void harpdata::DecRC() {
     if (IF_OBJ(*this)) DECODE_OBJ(*this)->DecRC();
 }
 void harpdata::Print() {
@@ -317,6 +352,15 @@ void harpdata::DebugPrint() {
         break;
     }
 }
+inline const uint32_t harpdata::GetType() const {
+    uint32_t tag;
+    if ((byte & INF_MARK) == INF_MARK) {
+        tag = GET_TAGNO(*this);
+    }
+    else tag = TFloat;
+
+    return tag;
+}
 static harpobj harpobj_new(void* ptr, harpobjtype obj_t) {
     harpobj obj;
     obj.Init();
@@ -330,6 +374,13 @@ typedef struct harppair {
     harpdata key;
     harpdata val;
 } harppair;
+constexpr uint32_t HARPDICT_CAPA_MAX=15u;
+constexpr uint32_t HARPDICT_CAPA[HARPDICT_CAPA_MAX] = {
+
+    17u, 37u, 67u, 131u, 257u,
+    521u, 1031u, 2053u, 4099u, 8209u,
+    16411u, 32771u, 65537u, 131101u, 262147u,
+};
 struct harpdict_d {
     uint32_t len;//점유 중
     uint32_t capa;
@@ -337,6 +388,28 @@ struct harpdict_d {
     uint32_t head_len;
     uint8_t* head;
     harppair dict[];
+
+    
+    uint32_t GetHeadSizeFrom(uint32_t _capa) {
+        return (capa + 7u)& (~7u);
+    }
+    void Resort() {
+
+    }
+    void Resize() {
+        
+    }
+
+    void Insert() {
+        if ((len + tomb_cnt) * 4 > capa * 3) {
+            if (tomb_cnt * 3 > capa) {
+                //resort
+            }
+            else {
+                //resize
+            }
+        }
+    }
 };
 struct harplist_d {
     uint32_t len;
@@ -363,7 +436,7 @@ struct harplist_d {
     }
     void Delete() {
         for (uint32_t i = 0u; i < len; i++) {
-            arr[i].decRC();
+            arr[i].DecRC();
         }
     }
 };
@@ -446,6 +519,30 @@ void harpobj::DebugPrint() {
 //#define INT_CALC_IN(N1, S, N2) DECODE_INT(N1) S DECODE_INT(N2)
 
 #endif
+static const harpdata harpdata_calc_1(const harpdata n1, const uint8_t op) {
+    harpdata res;
+    switch (op) {
+    case op_min:
+        if (n1.GetType() == TInt) {
+            res.byte = ENCODE_INT(n1.byte ^ 0x800000000000llu + 1u);
+        }
+        else if (n1.GetType() == TFloat) { res.f64 = -n1.f64; }
+        else if (n1.GetType() == TObj) {}
+        else goto l_err;
+        break;
+    case op_not:
+        if (n1.GetType() == TInt) {}
+        else if (n1.GetType() == TFloat) {}
+        else if (n1.GetType() == TObj) {}
+        else goto l_err;
+        break;
+    }
+    
+    return res;
+l_err:
+    res.SetErr(rte_calc_failed);
+    return res;
+}
 static const harpdata harpdata_calc(const harpdata n1, const harpdata n2, const uint8_t op) {
     harpdata res;
     // val & 7FF == inf?{
@@ -461,88 +558,85 @@ static const harpdata harpdata_calc(const harpdata n1, const harpdata n2, const 
     // }
     // -> float
     // spec -> type
-    const uint64_t n1_tag = CHECK_TAG15(n1);
-    const uint64_t n2_tag = CHECK_TAG15(n2);
-    if (n1_tag == (0x7FF0ULL << 48)) {
-        if (n2_tag == TAG_INT) {
-            switch (op) {
-            case op_add: res.byte = INT_CALC_NEW(n1, +, n2); break;
-            case op_sub: res.byte = INT_CALC_NEW(n1, -, n2); break;
-            case op_mul: res.byte = INT_CALC_NEW(n1, *, n2); break;
-            case op_div: res.byte = INT_CALC_NEW(n1, / , n2); break;
-            case op_mod: res.byte = INT_CALC_NEW(n1, %, n2); break;
-            case op_lt: res.byte = INT_CALC_NEW(n1, < , n2); break;
-            case op_lte: res.byte = INT_CALC_NEW(n1, <= , n2); break;
-            case op_gt: res.byte = INT_CALC_NEW(n1, > , n2); break;
-            case op_gte: res.byte = INT_CALC_NEW(n1, >= , n2); break;
-            case op_eq: res.byte = INT_CALC_NEW(n1, == , n2); break;
-            case op_neq: res.byte = INT_CALC_NEW(n1, != , n2); break;
-            case op_pow: res.byte = ENCODE_INT(pow((double)DECODE_INT(n1), (double)DECODE_INT(n2)));
-                break;
-            default: goto l_err;
-            }
-            goto l_ret;
-        }
-        //
-        else if (IF_FLOAT(n2)) {
-            switch (op) {
-            case op_add:   res.f64 = (double)DECODE_INT(n1) + n2.f64; break;
-            case op_sub:   res.f64 = (double)DECODE_INT(n1) - n2.f64; break;
-            case op_mul:   res.f64 = (double)DECODE_INT(n1) * n2.f64; break;
-            case op_div:   res.f64 = (double)DECODE_INT(n1) / n2.f64; break;
-            case op_mod:   res.f64 = fmod((double)DECODE_INT(n1), n2.f64); break;
-            case op_lt:  res.byte = ENCODE_INT((double)DECODE_INT(n1) < n2.f64); break;
-            case op_lte: res.byte = ENCODE_INT((double)DECODE_INT(n1) <= n2.f64); break;
-            case op_gt:  res.byte = ENCODE_INT((double)DECODE_INT(n1) > n2.f64); break;
-            case op_gte: res.byte = ENCODE_INT((double)DECODE_INT(n1) >= n2.f64); break;
-            case op_eq:    res.byte = ENCODE_INT((double)DECODE_INT(n1) == n2.f64); break;
-            case op_neq:   res.byte = ENCODE_INT((double)DECODE_INT(n1) != n2.f64); break;
-            case op_pow:   res.f64 = pow((double)DECODE_INT(n1), n2.f64); break;
-            default: goto l_err;
-            }
-            goto l_ret;
-        }
-    }
-    else if (IF_FLOAT(n1)) {
-        if (IF_FLOAT(n2)) {
-            switch (op) {
-            case op_add:res.f64 = n1.f64 + n2.f64; break;
-            case op_sub:res.f64 = n1.f64 - n2.f64; break;
-            case op_mul:res.f64 = n1.f64 * n2.f64; break;
-            case op_div:res.f64 = n1.f64 / n2.f64; break;
-            case op_mod:   res.f64 = fmod(n1.f64, n2.f64); break;
-            case op_lt:  res.byte = ENCODE_INT(n1.f64 < n2.f64); break;
-            case op_lte: res.byte = ENCODE_INT(n1.f64 <= n2.f64);  break;
-            case op_gt:  res.byte = ENCODE_INT(n1.f64 > n2.f64); break;
-            case op_gte: res.byte = ENCODE_INT(n1.f64 >= n2.f64);  break;
-            case op_eq:    res.byte = ENCODE_INT(n1.f64 == n2.f64);  break;
-            case op_neq:   res.byte = ENCODE_INT(n1.f64 != n2.f64);  break;
-            case op_pow:   res.f64 = pow(n1.f64, n2.f64);  break;
-            default: goto l_err;
-            }
-            goto l_ret;
-        }
-        else if (n2_tag == TAG_INT) {
+#define CT(N1, N2) ((N1<<4) | (N2))
 
-            switch (op) {
-            case op_add:   res.f64 = n1.f64 + (double)DECODE_INT(n2); break;
-            case op_sub:   res.f64 = n1.f64 - (double)DECODE_INT(n2); break;
-            case op_mul:   res.f64 = n1.f64 * (double)DECODE_INT(n2); break;
-            case op_div:   res.f64 = n1.f64 / (double)DECODE_INT(n2); break;
-            case op_mod:   res.f64 = fmod(n1.f64, (double)DECODE_INT(n2)); break;
-            case op_lt:  res.byte = ENCODE_INT(n1.f64 < (double)DECODE_INT(n2)); break;
-            case op_lte: res.byte = ENCODE_INT(n1.f64 <= (double)DECODE_INT(n2)); break;
-            case op_gt:  res.byte = ENCODE_INT(n1.f64 > (double)DECODE_INT(n2)); break;
-            case op_gte: res.byte = ENCODE_INT(n1.f64 >= (double)DECODE_INT(n2)); break;
-            case op_eq:    res.byte = ENCODE_INT(n1.f64 == (double)DECODE_INT(n2)); break;
-            case op_neq:   res.byte = ENCODE_INT(n1.f64 != (double)DECODE_INT(n2)); break;
-            case op_pow:   res.f64 = pow(n1.f64, (double)DECODE_INT(n2)); break;
-            default:       goto l_err;
-            }
-            goto l_ret;
+    const uint32_t Type = (n1.GetType() << 4) | (n2.GetType());
+    switch (Type) {
+    case CT(TInt, TInt): {
+        switch (op) {
+        case op_add: res.byte = INT_CALC_NEW(n1, +, n2); break;
+        case op_sub: res.byte = INT_CALC_NEW(n1, -, n2); break;
+        case op_mul: res.byte = INT_CALC_NEW(n1, *, n2); break;
+        case op_div: res.byte = INT_CALC_NEW(n1, / , n2); break;
+        case op_mod: res.byte = INT_CALC_NEW(n1, %, n2); break;
+        case op_lt: res.byte = ENCODE_BOOL(n1.byte < n2.byte); break;
+        case op_lte: res.byte = ENCODE_BOOL(n1.byte <= n2.byte); break;
+        case op_gt: res.byte = ENCODE_BOOL(n1.byte > n2.byte); break;
+        case op_gte: res.byte = ENCODE_BOOL(n1.byte >= n2.byte); break;
+        case op_eq: res.byte = ENCODE_BOOL(n1.byte == n2.byte); break;
+        case op_neq: res.byte = ENCODE_BOOL(n1.byte != n2.byte); break;
+        case op_pow: res.byte = ENCODE_INT(pow((double)DECODE_INT(n1), (double)DECODE_INT(n2)));
+            break;
+        default: goto l_err;
         }
-    }
-    else {
+        goto l_ret;
+    }break;
+                       //
+    case CT(TInt, TFloat): {
+        switch (op) {
+        case op_add:   res.f64 = (double)DECODE_INT(n1) + n2.f64; break;
+        case op_sub:   res.f64 = (double)DECODE_INT(n1) - n2.f64; break;
+        case op_mul:   res.f64 = (double)DECODE_INT(n1) * n2.f64; break;
+        case op_div:   res.f64 = (double)DECODE_INT(n1) / n2.f64; break;
+        case op_mod:   res.f64 = fmod((double)DECODE_INT(n1), n2.f64); break;
+        case op_lt:  res.byte = ENCODE_BOOL((double)DECODE_INT(n1) < n2.f64); break;
+        case op_lte: res.byte = ENCODE_BOOL((double)DECODE_INT(n1) <= n2.f64); break;
+        case op_gt:  res.byte = ENCODE_BOOL((double)DECODE_INT(n1) > n2.f64); break;
+        case op_gte: res.byte = ENCODE_BOOL((double)DECODE_INT(n1) >= n2.f64); break;
+        case op_eq:    res.byte = HARP_FALSE; break;
+        case op_neq:   res.byte = HARP_TRUE; break;
+        case op_pow:   res.f64 = pow((double)DECODE_INT(n1), n2.f64); break;
+        default: goto l_err;
+        }
+        goto l_ret;
+    }break;
+    case CT(TFloat, TFloat): {
+        switch (op) {
+        case op_add:res.f64 = n1.f64 + n2.f64; break;
+        case op_sub:res.f64 = n1.f64 - n2.f64; break;
+        case op_mul:res.f64 = n1.f64 * n2.f64; break;
+        case op_div:res.f64 = n1.f64 / n2.f64; break;
+        case op_mod:   res.f64 = fmod(n1.f64, n2.f64); break;
+        case op_lt:  res.byte = ENCODE_BOOL(n1.f64 < n2.f64); break;
+        case op_lte: res.byte = ENCODE_BOOL(n1.f64 <= n2.f64);  break;
+        case op_gt:  res.byte = ENCODE_BOOL(n1.f64 > n2.f64); break;
+        case op_gte: res.byte = ENCODE_BOOL(n1.f64 >= n2.f64);  break;
+        case op_eq:    res.byte = ENCODE_BOOL(n1.f64 == n2.f64);  break;
+        case op_neq:   res.byte = ENCODE_BOOL(n1.f64 != n2.f64);  break;
+        case op_pow:   res.f64 = pow(n1.f64, n2.f64);  break;
+        default: goto l_err;
+        }
+        goto l_ret;
+    }break;
+    case CT(TFloat, TInt): {
+        switch (op) {
+        case op_add:   res.f64 = n1.f64 + (double)DECODE_INT(n2); break;
+        case op_sub:   res.f64 = n1.f64 - (double)DECODE_INT(n2); break;
+        case op_mul:   res.f64 = n1.f64 * (double)DECODE_INT(n2); break;
+        case op_div:   res.f64 = n1.f64 / (double)DECODE_INT(n2); break;
+        case op_mod:   res.f64 = fmod(n1.f64, (double)DECODE_INT(n2)); break;
+        case op_lt:  res.byte = ENCODE_BOOL(n1.f64 < (double)DECODE_INT(n2)); break;
+        case op_lte: res.byte = ENCODE_BOOL(n1.f64 <= (double)DECODE_INT(n2)); break;
+        case op_gt:  res.byte = ENCODE_BOOL(n1.f64 > (double)DECODE_INT(n2)); break;
+        case op_gte: res.byte = ENCODE_BOOL(n1.f64 >= (double)DECODE_INT(n2)); break;
+        case op_eq:    res.byte = HARP_FALSE; break;
+        case op_neq:   res.byte = HARP_TRUE; break;
+        case op_pow:   res.f64 = pow(n1.f64, (double)DECODE_INT(n2)); break;
+        default:       goto l_err;
+        }
+        goto l_ret;
+    }break;
+    default: {
         {
             const uint32_t n1_type = GET_TAGNO(n1);
             const uint32_t n2_type = GET_TAGNO(n2);
@@ -555,128 +649,130 @@ static const harpdata harpdata_calc(const harpdata n1, const harpdata n2, const 
             }
             goto l_err;
         }
+    }break;
     }
 l_err:
-    res.byte = ENCODE_ERR(rte_calc_failed);
+    res.SetErr(rte_calc_failed);
 l_ret:
     return res;
 }
 
-static const harpdata harpdata_calc2(const harpdata n1, const harpdata n2, const uint8_t op) {
-    harpdata res;
-    // val & 7FF == inf?{
-    // taf==7FF -> inf or nan (qnan/snan and type)
-    // else float
-    //   val & 7FFF == 7FF8
-    //	    -> float
-    //   }
-    //	 val & (0008|0001) == INT
-    //	 val & (0008|0002) == OBJ
-    //	 val & (0008|0003) == INSTR
-    //	 val & (0008|0004) == FNC
-    // }
-    // -> float
-    // spec -> type
-    const uint64_t n1_tag = (n1.byte) >> 48;
-    const uint64_t n2_tag = (n1.byte) >> 48;
-    if (n1_tag == TAG_INT) {
-        if (n2_tag == TAG_INT) {
-            switch (op) {
-            case op_add: res.byte = INT_CALC_NEW(n1, +, n2); break;
-            case op_sub: res.byte = INT_CALC_NEW(n1, -, n2); break;
-            case op_mul: res.byte = INT_CALC_NEW(n1, *, n2); break;
-            case op_div: res.byte = INT_CALC_NEW(n1, / , n2); break;
-            case op_mod: res.byte = INT_CALC_NEW(n1, %, n2); break;
-            case op_lt: res.byte = INT_CALC_NEW(n1, < , n2); break;
-            case op_lte: res.byte = INT_CALC_NEW(n1, <= , n2); break;
-            case op_gt: res.byte = INT_CALC_NEW(n1, > , n2); break;
-            case op_gte: res.byte = INT_CALC_NEW(n1, >= , n2); break;
-            case op_eq: res.byte = INT_CALC_NEW(n1, == , n2); break;
-            case op_neq: res.byte = INT_CALC_NEW(n1, != , n2); break;
-            case op_pow: res.byte = ENCODE_INT(pow((double)DECODE_INT(n1), (double)DECODE_INT(n2)));
-                break;
-            default: goto l_err;
-            }
-            goto l_ret;
-        }
-        //
-        else if (IF_FLOAT(n2)) {
-            switch (op) {
-            case op_add:   res.f64 = (double)DECODE_INT(n1) + n2.f64; break;
-            case op_sub:   res.f64 = (double)DECODE_INT(n1) - n2.f64; break;
-            case op_mul:   res.f64 = (double)DECODE_INT(n1) * n2.f64; break;
-            case op_div:   res.f64 = (double)DECODE_INT(n1) / n2.f64; break;
-            case op_mod:   res.f64 = fmod((double)DECODE_INT(n1), n2.f64); break;
-            case op_lt:  res.byte = ENCODE_INT((double)DECODE_INT(n1) < n2.f64); break;
-            case op_lte: res.byte = ENCODE_INT((double)DECODE_INT(n1) <= n2.f64); break;
-            case op_gt:  res.byte = ENCODE_INT((double)DECODE_INT(n1) > n2.f64); break;
-            case op_gte: res.byte = ENCODE_INT((double)DECODE_INT(n1) >= n2.f64); break;
-            case op_eq:    res.byte = ENCODE_INT((double)DECODE_INT(n1) == n2.f64); break;
-            case op_neq:   res.byte = ENCODE_INT((double)DECODE_INT(n1) != n2.f64); break;
-            case op_pow:   res.f64 = pow((double)DECODE_INT(n1), n2.f64); break;
-            default: goto l_err;
-            }
-            goto l_ret;
-        }
-    }
-    else if (IF_FLOAT(n1)) {
-        if (IF_FLOAT(n2)) {
-            switch (op) {
-            case op_add:res.f64 = n1.f64 + n2.f64; break;
-            case op_sub:res.f64 = n1.f64 - n2.f64; break;
-            case op_mul:res.f64 = n1.f64 * n2.f64; break;
-            case op_div:res.f64 = n1.f64 / n2.f64; break;
-            case op_mod:   res.f64 = fmod(n1.f64, n2.f64); break;
-            case op_lt:  res.byte = ENCODE_INT(n1.f64 < n2.f64); break;
-            case op_lte: res.byte = ENCODE_INT(n1.f64 <= n2.f64);  break;
-            case op_gt:  res.byte = ENCODE_INT(n1.f64 > n2.f64); break;
-            case op_gte: res.byte = ENCODE_INT(n1.f64 >= n2.f64);  break;
-            case op_eq:    res.byte = ENCODE_INT(n1.f64 == n2.f64);  break;
-            case op_neq:   res.byte = ENCODE_INT(n1.f64 != n2.f64);  break;
-            case op_pow:   res.f64 = pow(n1.f64, n2.f64);  break;
-            default: goto l_err;
-            }
-            goto l_ret;
-        }
-        else if (n2_tag == TAG_INT) {
-
-            switch (op) {
-            case op_add:   res.f64 = n1.f64 + (double)DECODE_INT(n2); break;
-            case op_sub:   res.f64 = n1.f64 - (double)DECODE_INT(n2); break;
-            case op_mul:   res.f64 = n1.f64 * (double)DECODE_INT(n2); break;
-            case op_div:   res.f64 = n1.f64 / (double)DECODE_INT(n2); break;
-            case op_mod:   res.f64 = fmod(n1.f64, (double)DECODE_INT(n2)); break;
-            case op_lt:  res.byte = ENCODE_INT(n1.f64 < (double)DECODE_INT(n2)); break;
-            case op_lte: res.byte = ENCODE_INT(n1.f64 <= (double)DECODE_INT(n2)); break;
-            case op_gt:  res.byte = ENCODE_INT(n1.f64 > (double)DECODE_INT(n2)); break;
-            case op_gte: res.byte = ENCODE_INT(n1.f64 >= (double)DECODE_INT(n2)); break;
-            case op_eq:    res.byte = ENCODE_INT(n1.f64 == (double)DECODE_INT(n2)); break;
-            case op_neq:   res.byte = ENCODE_INT(n1.f64 != (double)DECODE_INT(n2)); break;
-            case op_pow:   res.f64 = pow(n1.f64, (double)DECODE_INT(n2)); break;
-            default:       goto l_err;
-            }
-            goto l_ret;
-        }
-    }
-    else {
-        {
-            const uint32_t n1_type = GET_TAGNO(n1);
-            const uint32_t n2_type = GET_TAGNO(n2);
-            if (n1_type == n2_type) {
-                switch (n1_type) {
-                default:
-                    goto l_err;
-                    //goto l_err;
-                }
-            }
-            goto l_err;
-        }
-    }
-l_err:
-    res.byte = ENCODE_ERR(rte_calc_failed);
-l_ret:
-    return res;
-}
+////static const harpdata harpdata_calc2(const harpdata n1, const harpdata n2, const uint8_t op) {
+  //  harpdata res;
+  //  // val & 7FF == inf?{
+  //  // taf==7FF -> inf or nan (qnan/snan and type)
+  //  // else float
+  //  //   val & 7FFF == 7FF8
+  //  //	    -> float
+  //  //   }
+  //  //	 val & (0008|0001) == INT
+  //  //	 val & (0008|0002) == OBJ
+  //  //	 val & (0008|0003) == INSTR
+  //  //	 val & (0008|0004) == FNC
+  //  // }
+  //  // -> float
+  //  // spec -> type
+  //  const uint64_t n1_tag = (n1.byte) >> 48;
+  //  const uint64_t n2_tag = (n1.byte) >> 48;
+  //  if (n1_tag == TAG_INT) {
+  //      if (n2_tag == TAG_INT) {
+  //          switch (op) {
+  //          case op_add: res.byte = INT_CALC_NEW(n1, +, n2); break;
+  //          case op_sub: res.byte = INT_CALC_NEW(n1, -, n2); break;
+  //          case op_mul: res.byte = INT_CALC_NEW(n1, *, n2); break;
+  //          case op_div: res.byte = INT_CALC_NEW(n1, / , n2); break;
+  //          case op_mod: res.byte = INT_CALC_NEW(n1, %, n2); break;
+  //          case op_lt: res.byte = INT_CALC_NEW(n1, < , n2); break;
+  //          case op_lte: res.byte = INT_CALC_NEW(n1, <= , n2); break;
+  //          case op_gt: res.byte =  INT_CALC_NEW(n1, > , n2); break;
+  //          case op_gte: res.byte = INT_CALC_NEW(n1, >= , n2); break;
+  //          case op_eq: res.byte =  INT_CALC_NEW(n1, == , n2); break;
+  //          case op_neq: res.byte = INT_CALC_NEW(n1, != , n2); break;
+  //          case op_pow: res.byte = ENCODE_INT(pow((double)DECODE_INT(n1), (double)DECODE_INT(n2)));
+  //              break;
+  //          default: goto l_err;
+  //          }
+  //          goto l_ret;
+  //      }
+  //      //
+  //      else if (IF_FLOAT(n2)) {
+  //          switch (op) {
+  //          case op_add:   res.f64 = (double)DECODE_INT(n1) + n2.f64; break;
+  //          case op_sub:   res.f64 = (double)DECODE_INT(n1) - n2.f64; break;
+  //          case op_mul:   res.f64 = (double)DECODE_INT(n1) * n2.f64; break;
+  //          case op_div:   res.f64 = (double)DECODE_INT(n1) / n2.f64; break;
+  //          case op_mod:   res.f64 = fmod((double)DECODE_INT(n1), n2.f64); break;
+  //          case op_lt:  res.byte = ENCODE_INT((double)DECODE_INT(n1) < n2.f64); break;
+  //          case op_lte: res.byte = ENCODE_INT((double)DECODE_INT(n1) <= n2.f64); break;
+  //          case op_gt:  res.byte = ENCODE_INT((double)DECODE_INT(n1) > n2.f64); break;
+  //          case op_gte: res.byte = ENCODE_INT((double)DECODE_INT(n1) >= n2.f64); break;
+  //          case op_eq:    res.byte = ENCODE_INT((double)DECODE_INT(n1) == n2.f64); break;
+  //          case op_neq:   res.byte = ENCODE_INT((double)DECODE_INT(n1) != n2.f64); break;
+  //          case op_pow:   res.f64 = pow((double)DECODE_INT(n1), n2.f64); break;
+  //          default: goto l_err;
+  //          }
+  //          goto l_ret;
+  //      }
+  //  }
+  //  else if (IF_FLOAT(n1)) {
+  //      if (IF_FLOAT(n2)) {
+  //          switch (op) {
+  //          case op_add:res.f64 = n1.f64 + n2.f64; break;
+  //          case op_sub:res.f64 = n1.f64 - n2.f64; break;
+  //          case op_mul:res.f64 = n1.f64 * n2.f64; break;
+  //          case op_div:res.f64 = n1.f64 / n2.f64; break;
+  //          case op_mod:   res.f64 = fmod(n1.f64, n2.f64); break;
+  //          case op_lt:  res.byte = ENCODE_BOOL(n1.f64 < n2.f64); break;
+  //          case op_lte: res.byte = ENCODE_BOOL(n1.f64 <= n2.f64);  break;
+  //          case op_gt:  res.byte = ENCODE_BOOL(n1.f64 > n2.f64); break;
+  //          case op_gte: res.byte = ENCODE_BOOL(n1.f64 >= n2.f64);  break;
+  //          case op_eq:    res.byte = ENCODE_BOOL(n1.f64 == n2.f64);  break;
+  //          case op_neq:   res.byte = ENCODE_BOOL(n1.f64 != n2.f64);  break;
+  //          case op_pow:   res.f64 = pow(n1.f64, n2.f64);  break;
+  //          default: goto l_err;
+  //          }
+  //          goto l_ret;
+  //      }
+  //      else if (n2_tag == TAG_INT) {
+  //
+  //          switch (op) {
+  //          case op_add:   res.f64 = n1.f64 + (double)DECODE_INT(n2); break;
+  //          case op_sub:   res.f64 = n1.f64 - (double)DECODE_INT(n2); break;
+  //          case op_mul:   res.f64 = n1.f64 * (double)DECODE_INT(n2); break;
+  //          case op_div:   res.f64 = n1.f64 / (double)DECODE_INT(n2); break;
+  //          case op_mod:   res.f64 = fmod(n1.f64, (double)DECODE_INT(n2)); break;
+  //          case op_lt:  res.byte = ENCODE_INT(n1.f64 < (double)DECODE_INT(n2)); break;
+  //          case op_lte: res.byte = ENCODE_INT(n1.f64 <= (double)DECODE_INT(n2)); break;
+  //          case op_gt:  res.byte = ENCODE_INT(n1.f64 > (double)DECODE_INT(n2)); break;
+  //          case op_gte: res.byte = ENCODE_INT(n1.f64 >= (double)DECODE_INT(n2)); break;
+  //          case op_eq:    res.byte = ENCODE_INT(n1.f64 == (double)DECODE_INT(n2)); break;
+  //          case op_neq:   res.byte = ENCODE_INT(n1.f64 != (double)DECODE_INT(n2)); break;
+  //          case op_pow:   res.f64 = pow(n1.f64, (double)DECODE_INT(n2)); break;
+  //          default:       goto l_err;
+  //          }
+  //          goto l_ret;
+  //      }
+  //  }
+  //  else {
+  //      {
+  //          const uint32_t n1_type = GET_TAGNO(n1);
+  //          const uint32_t n2_type = GET_TAGNO(n2);
+  //          if (n1_type == n2_type) {
+  //              switch (n1_type) {
+  //              default:
+  //                  goto l_err;
+  //                  //goto l_err;
+  //              }
+  //          }
+  //          goto l_err;
+  //      }
+  //  }
+//l_//err:
+//  //  res.byte = ENCODE_ERR(rte_calc_failed);
+//l_//ret:
+//  //  return res;
+//} //
+////
 //static void harpdata_print(const harpdata n1) {
 //    printf("%llX ", n1.byte);
 //    if (IF_INT(n1)) { printf("[int] %lld", DECODE_INT_C(n1)); }

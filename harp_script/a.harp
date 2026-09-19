@@ -1,0 +1,6 @@
+use file,window
+print 'a'*10
+print 'b'*20
+f=fopen('bytecode.txt','r')
+print fread_all(f)
+fclose(f)

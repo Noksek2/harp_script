@@ -1,0 +1,15 @@
+use dxlib,math
+dxlib_init()
+x=250
+y=200
+img2=loadgraph('./image/chong.png')
+pit=loadgraph('./image/trans.jpg')
+sp=6
+while msgloop()&!keypress(vk_esc):
+	if keypress(vk_left):x-=sp;
+	if keypress(vk_right):x+=sp;
+	if keypress(vk_up):y-=sp;
+	if keypress(vk_down):y+=sp;
+	drawgraph(pit,random(500),random(100))
+	rotagraph(img2,x,y,360*sin(x),sin(y)+0.1);
+dxlib_end()

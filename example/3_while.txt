@@ -1,0 +1,14 @@
+sum=0
+flag=1
+while flag:
+	n=get('숫자 입력해 : ')
+	if n==0 flag=0
+	sum+=n;
+print '숫자의 합 : ',sum
+
+loop i,100:
+	if i%3==0 & i%5==0: out 'fizzbuzz ';
+	elif i%3==0: out 'fizz ';
+	elif i%5==0: out 'buzz ';
+	else out i,' '
+;

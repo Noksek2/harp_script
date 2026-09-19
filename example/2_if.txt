@@ -1,8 +1,0 @@
-a=get('입력 : ')
-if a==1:
-	print 'a는 1임';
-elif a==2:
-	print '콩진호가 간다'
-	print '콩진호가 간다';
-else:
-	print 'ㅗ';

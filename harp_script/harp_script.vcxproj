@@ -144,7 +144,7 @@
   <ItemGroup>
     <ClCompile Include="compile.cpp" />
     <ClCompile Include="execute.cpp" />
-    <ClCompile Include="harpdata.c" />
+    <ClCompile Include="harpdata.cpp" />
     <ClCompile Include="infunc.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="express.cpp" />
@@ -155,6 +155,7 @@
     <ClInclude Include="errormsg.h" />
     <ClInclude Include="execute.h" />
     <ClInclude Include="harpdata.h" />
+    <ClInclude Include="head.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="infunc.h" />

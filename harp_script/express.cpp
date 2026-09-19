@@ -23,16 +23,16 @@ int COMPILE::factor() {//일차항 분석
 	wstring name;
 	switch (t.typ) {
 	case _Int:
-		exe.lit.emplace_back(stoi(t.s));
-		bytecode.push({ op::op_lit, (uint32_t)exe.lit.size() - 1 });
+		exe.lit_push((_wtoi64(t.s.c_str())));
+		bytecode.push({ op_lit, (uint32_t)exe.lit.size() - 1 });
 		break;
 	case _Num:
-		exe.lit.emplace_back(stod(t.s));
-		bytecode.push({ op::op_lit, (uint32_t)exe.lit.size() - 1 });
+		exe.lit_push((_wtof(t.s.c_str())));
+		bytecode.push({ op_lit, (uint32_t)exe.lit.size() - 1 });
 		break;
 	case _Str:
-		exe.lit.emplace_back(t.s);
-		bytecode.push({ op::op_lit, (uint32_t)exe.lit.size() - 1 });
+		exe.lit_push(t.s.c_str(),(uint32_t)t.s.size());
+		bytecode.push({ op_lit, (uint32_t)exe.lit.size() - 1 });
 		break;
 	case _Plus:
 		NEXT;

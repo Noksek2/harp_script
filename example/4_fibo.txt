@@ -1,8 +1,0 @@
-print '아마도 피보나치 수열 계산'
-nn=get('숫자 : ')
-p1=0 p2=1
-loop i,nn:
-	n=p1+p2
-	p1=p2
-	p2=n
-	print i+1,'번째 : ',n;

@@ -1,27 +1,20 @@
 ﻿#ifndef __DEF_H__
 #define __DEF_H__
 
-#include <iostream>
-#include <fstream>
-#include <map>
-#include <vector>
-#include <string>
-#include <cmath>
-
-#include <stdio.h>
-#include <Windows.h>
-#include <crtdbg.h>
-#include <conio.h>
-#include <time.h>
-#include "infunc.h"
+#include "head.h"
 #include "harpdata.h"
-using namespace std;
+#include "infunc.h"
+
+//using namespace std;
+
+
 enum {
 	_4KB = 4 * 1024,
 	_64KB = 64 * 1024,
 	_4MB = 4 * 1024 * 1024,
+	_16MB = 16 * 1024 * 1024,
 	_64MB = 64 * 1024 * 1024,
-	MEM_MAX = _4MB,
+	MEM_MAX = _16MB,
 };
 
 static void Harp_assert(bool statement, const char* buf) {
@@ -38,85 +31,18 @@ static void Harp_assert(bool statement, const char* buf) {
 	}
 }
 
-
-typedef wchar_t wchar;
-/*
-class var {
-
-	void out() {
-		if (type == Int) {
-			cout << d.i;
-		}
-		else if (type == Num) {
-			cout << d.n;
-		}
-		else if (type == Str) {
-			wcout << s;
-		}
-	}
-	void print() {
-		if (type == Int) {
-			cout << d.i<<"\n";
-		}
-		else if (type == Num) {
-			cout << d.n << "\n";
-		}
-		else if (type == Str) {
-			wcout << s << "\n";
-		}
+static void Harp_assert_dbg(bool statement, const char* buf) {
+#ifdef _DEBUG
+	if (!statement) {
+		puts(buf);
+		__debugbreak();
 	}
 
+#endif
+}
 
-	wstring mulstr(wstring s,long long n) {
-		wstring a = L"";
-		for(int i=0;i<(int)n;i++)a += s;
-		return a;
-	}
 
-	var minus1() {
-		if (type == Int) {
-			return -d.i;
-		}
-		else if (type == Num) {
-			return -d.n;
-		}
-		return 0;
-	}
-	var not1() {
-		if (type == Int) {
-			return !d.i;
-		}
-		else if (type == Num) {
-			return !d.n;
-		}
-		else if (type == Str) {
-			return s == L"";
-		}
-		return 0;
-	}
-	var poww(var &b) {
-		if (type == b.type) {
-			if (b.type == Int)return int(pow(d.i , b.d.i));
-			else if (b.type == Num)return pow(d.n , b.d.n);
-		}
-		else if (type == Num)return pow(d.n , (double)b.d.i);
-		else if (b.type == Num)return pow((double)d.i , b.d.n);
-		return 0;
-	}
-	int True() {
-		if (type == Int) {
-			return d.i==1;
-		}
-		else if (type == Num) {
-			return d.n==1.0;
-		}
-		else if (type == Str) {
-			return s == L"";
-		}
-		return 0;
-	}
-	
-};*/
+
 
 enum ttype : uint8_t{
 	None,
@@ -200,7 +126,7 @@ enum ttype : uint8_t{
 };
 enum symtype : uint8_t {
 	SVar,
-	SFnc,
+	SFnc, SFunc= SFnc,
 	SInFnc,
 };
 

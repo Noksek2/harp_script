@@ -1,7 +1,8 @@
 ﻿#pragma once
 //#define fstr(a) (#a)
+#include "harpdata.h"
 
-enum funclib {
+enum infunctype {
 
 	f_type,		//type()
 	f_types,		//types()
@@ -155,8 +156,9 @@ extern void txtColor(int color);
 extern void bgColor(int bgcolor);
 extern double radian(double n);
 extern double degree(double n);
-extern string multibyte(wstring uni);
+extern std::string multibyte(std::wstring uni);
 //extern wstring get_allfile(FILE*);
 extern long long file_get(FILE*);
 extern double file_getn(FILE*);
 
+void infunc_call(infunctype ft, harpdata* dats, uint32_t para_len);

@@ -1,18 +1,15 @@
-﻿/* 이 코드는 저작권 같은거는 없는데, 일단 녹색이 (https://blog.naver.com/banwonkim)가 작성한 듯 보입니다.
-와 샌즈!
-
-토큰 얻고 식 분석하고 바이트코드 추가하는 부분입니다.
-참고로 이 때는 AST같은 건 전혀 몰랐음.
-참고로 지금도 구현 안 함*/
+﻿/* harp script v0.2.0 */
 
 #pragma once
 #include "execute.h"
+#include "errormsg.h"
+
 
 #define NEXT t=tok.back().next() //tok.back()하면 되는데 1년전에는 그걸 모름. 병진
 
 class KEY {
 public:
-	map<wstring, char>typestr;
+	std::umap<std::wstring, uchar>typestr;
 	KEY() {
 		/*함수*/
 		typestr.emplace(L"func", _func);
@@ -236,7 +233,7 @@ private:
 	uint8_t asmgiho[TOK_MAX]; // TOKEN -> OP
 	uint8_t gihorank[OP_MAX]; // RANK OF OP
 	//바이트 코드 변환 때문에 뭔가 더러움
-
+	
 public:
 	COMPILE() {
 		exe.usefunc(L"basic");
@@ -249,16 +246,16 @@ public:
 			asmgiho[i] = gihorank[i] = 0;
 		}
 		
-		asmgiho[ttype::_Plus]  = optype::op_plus;
-		asmgiho[ttype::_Minus] = optype::op_minus;
-		asmgiho[ttype::_Multi] = optype::op_multi;
-		asmgiho[ttype::_Divi]  = optype::op_divi;
+		asmgiho[ttype::_Plus]  = optype::op_add;
+		asmgiho[ttype::_Minus] = optype::op_sub;
+		asmgiho[ttype::_Multi] = optype::op_mul;
+		asmgiho[ttype::_Divi]  = optype::op_div;
 		asmgiho[ttype::_Pow]   = optype::op_pow;
 		asmgiho[ttype::_Mod]   = optype::op_mod;
-		asmgiho[ttype::_Big]   = optype::op_more;
-		asmgiho[ttype::_Less]  = optype::op_less;
-		asmgiho[ttype::_Bigis] = optype::op_more2;
-		asmgiho[ttype::_Lessis]= optype::op_less2;
+		asmgiho[ttype::_Big]   = optype::op_gt;
+		asmgiho[ttype::_Less]  = optype::op_lt;
+		asmgiho[ttype::_Bigis] = optype::op_gte;
+		asmgiho[ttype::_Lessis]= optype::op_lte;
 		asmgiho[ttype::_Equal2]= optype::op_eq;
 		asmgiho[ttype::_Not2]  = optype::op_neq;
 		asmgiho[ttype::_And]   = optype::op_and;
@@ -268,22 +265,22 @@ public:
 		asmgiho[ttype::_Sub]  = optype::op_sub;
 		asmgiho[ttype::_Mul]  = optype::op_mul;
 		asmgiho[ttype::_Div]  = optype::op_div;
-		asmgiho[ttype::_Mod2] = optype::op_modis;
-		asmgiho[ttype::_Pow2] = optype::op_powis;
+		asmgiho[ttype::_Mod2] = optype::op_modeq;
+		asmgiho[ttype::_Pow2] = optype::op_poweq;
 
 		/*연산자 우선순위*/
 		gihorank[optype::op_pow] = 1;
-		gihorank[optype::op_multi]
-			= gihorank[optype::op_divi]
+		gihorank[optype::op_mul]
+			= gihorank[optype::op_div]
 			= gihorank[optype::op_mod]
 			= 2;
-		gihorank[optype::op_plus]
-			= gihorank[optype::op_minus]
+		gihorank[optype::op_add]
+			= gihorank[optype::op_sub]
 			= 3;
-		gihorank[optype::op_more]
-			= gihorank[optype::op_more2]
-			= gihorank[optype::op_less]
-			= gihorank[optype::op_less2]
+		gihorank[optype::op_gt]
+			= gihorank[optype::op_gte]
+			= gihorank[optype::op_lte]
+			= gihorank[optype::op_lt]
 			= 4;
 		gihorank[optype::op_neq]
 			= gihorank[optype::op_eq]
@@ -395,14 +392,14 @@ public:
 		bytecode.push({ (type == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem });
 		NEXT;
 		term();
-		bytecode.push({ op_less });
+		bytecode.push({ op_lt });
 		bytecode.push({ op_ujmp, 0 });
 		s = bytecode.m_len - 1;
 		loopcount++;
 		block();//블록 호출
 		bytecode.push({ op_push, 1 });
 		bytecode.push({ (type == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem });
-		bytecode.push({ op_plus });
+		bytecode.push({ op_add });
 		bytecode.push({ type, exe.symtable[n].mem });
 		bytecode.push({op_jmp, skippoint});
 		loopcount--;

@@ -24,6 +24,7 @@ dx_setarea setarea;
 dx_checksound checksound;
 
 CONSOLE_CURSOR_INFO cursorinfo;
+
 int random(int min, int max) {
 	return (int)(((double)rand() / RAND_MAX) * (max - min)) + min;
 }
@@ -96,35 +97,81 @@ double degree(double n) {
 	return n / MATH_PI * 180;
 }
 
-harpdata make_typestr(harpdata dat) {
-   harpdata dat_s;
+static harpobj make_typestr_obj(harpdata dat) {
+   harpstr str;
    uint32_t type;
    switch (GET_TAGNO(dat)) {
    case TInt:
-       memcpy((dat_s.s8 + 2), "int", 3); break;
+       str = harpstr_new(L"int", 3); break;
    case TNull:
-       memcpy((dat_s.s8 + 2), "null", 4); break;
+       str = harpstr_new(L"null", 4); break;
    case TError:
-       memcpy((dat_s.s8 + 2), "err", 3); break;
+       str = harpstr_new(L"err", 3); break;
    case TObj:
-       memcpy((dat_s.s8 + 2), "obj", 3); break;
-   case TInStr:
-       memcpy((dat_s.s8 + 2), "instr", 5); break;
-   case TFnc:
-       memcpy((dat_s.s8 + 2), "fnc", 4); break;
+       str = harpstr_new(L"obj", 3); break;
+	   //dat.decRC();
+   //case TStr:
+   //    str = harpstr_new(L"instr", 5); break;
+   //case TFnc:
+   //    str = harpstr_new(L"fnc", 4); break;
    default:
-       memcpy((dat_s.s8 + 2), "float", 5); break;
+       str = harpstr_new(L"float", 5); break;
    }
-   uint64_t d;
-   dat_s.byte = ENCODE_INSTR(dat_s);
-   return dat_s;
-   //d.obj->len;
+   return harpobj_new(str, objt_str);
+
 }
-void EXECUTE::callinfunc(uint32_t infunc_type) {
+static harpdata make_typestr(harpdata n0) {
+
+	harpobj* obj = g_objpool->Insert(make_typestr_obj(n0));
+
+	n0.decRC();
+	n0.SetObj(obj);
+}
+const harpdata harp_fopen(harpdata n0, harpdata n1) {
+	harpdata d;
+	FILE * fp;
+	if (!IF_OBJ(n0)) goto l_dec;
+	if (!IF_OBJ(n1)) goto l_dec;
+	
+	if (DECODE_OBJ(n0)->objtype != objt_str) goto l_dec;
+	if (DECODE_OBJ(n1)->objtype != objt_str) goto l_dec;
+
+	_wfopen_s(&fp, n0.GetStr()->ptr, n1.GetStr()->ptr);
+	
+	d.SetInt((uint64_t)fp);
+l_dec:
+	DECODE_OBJ(n0)->DecRC();
+	DECODE_OBJ(n1)->DecRC();
+}
+
+void infunc_call(infunctype ft, harpdata* dats, uint32_t para_len) {
+#define ASSERT_PARA(N, BUF) Harp_assert(para_len >= (N), BUF);
+#define ASSERT_PARA_DEF(N) ASSERT_PARA(N, "[ERROR] count of para unmatched");
+	harpdata* const N = dats - para_len;
+	switch (ft) {
+	case f_type:case f_types: {
+		ASSERT_PARA_DEF(1);
+		N[0] = make_typestr(N[0]);
+		
+	}break;
+	case f_fopen: {
+		ASSERT_PARA_DEF(2);
+		N[0] = harp_fopen(N[0], N[1]);
+		break;
+	}
+	case f_fclose:
+		break;
+	case f_get:
+		make_typestr(N[0]);
+	}
+}
+
+void EXECUTE::callinfunc(infunctype t) {
 	//mstack[0];
-	switch (infunc_type) {
-		// 기본 타입 및 입력 함수 
-	case f_type: opstack.push(make_typestr(mstack[0])); return;
+	//infunc_call(t,mstack.back_ptr(),_);
+	//switch (infunc_type) {
+	//	// 기본 타입 및 입력 함수 
+	//case f_type: opstack.push(make_typestr(mstack[0])); return;
 		/*case f_ascii: opstack.push((int)mstack[0].s[0]); return;
 		case f_get: return;
 		case f_getn:return;
@@ -199,8 +246,8 @@ void EXECUTE::callinfunc(uint32_t infunc_type) {
 		case f_dxlib_end: dxlib_end(); break;
 		}
 		opstack.push(1);*/
-		opstack.push(harpdata{ 1 });
-	}
+		//opstack.push(harpdata{ 1 });
+	//}
 }
 	bool EXECUTE::usefunc(const wstring & s) {
 	if (s == L"basic") {//basic은 기본적으로 include 됨.

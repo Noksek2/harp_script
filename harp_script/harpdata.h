@@ -3,10 +3,23 @@
 
 #define __TESTMODE
 
-#include <stdint.h>
-#include <math.h>
-#include <stdio.h>
-enum optype {
+
+#include "head.h"
+
+
+enum vartype {
+    TFloat = 0U,
+
+    TError = 1U,
+    TNull = 1U | 8,
+    TInt = 2U | 8,
+    TObj = 3U | 8,
+    TStr = 4U | 8,
+    TFnc = 5U | 8,
+
+};
+
+enum optype :uint8_t {
     op_push,
     op_pop,
     op_call,
@@ -34,14 +47,14 @@ enum optype {
     op_and,
     op_neq,
     op_eq,
-    op_more2,
-    op_more,
-    op_less2,
-    op_less,
-    op_plus,
-    op_minus,
-    op_multi,
-    op_divi,
+    op_gte,
+    op_gt,
+    op_lte,
+    op_lt,
+    op_add,
+    op_sub,
+    op_mul,
+    op_div,
     op_mod,
     op_pow,
     op_min,
@@ -49,51 +62,350 @@ enum optype {
     op_print,
     op_out,
 
-    op_add,
-    op_sub,
-    op_mul,
-    op_div,
-    op_modis,
-    op_powis,
+    op_addeq,
+    op_subeq,
+    op_muleq,
+    op_diveq,
+    op_modeq,
+    op_poweq,
 
     op_ang = 50,
 
     rank_brack = 100,
     OP_MAX = 100,
 };
-enum vartype {
-    TFloat = 0U,
-    
-    TError = 1U,
-    TNull = 1U | 8,
-    TInt = 2U | 8,
-    TObj = 3U | 8,
-    TInStr = 4U | 8,
-    TFnc = 5U | 8,
 
-};
 
 enum rterrtype {
     rte_calc_failed,
 };
+enum harpobjtype {
+    objt_null,
+    objt_str,
+    objt_list,
+    objt_dict,
+};
 
-#define MATH_PI 3.1415926535897932384626
-#define DX_PI 3.14159265358979323846264338327
 
-#define NAN_MARK     0x7FF8000000000000ULL
-#define SNAN_MARK    0x7FF0000000000000ULL
-#define INF_MARK     0x7FF0000000000000ULL
-#define BIT_15_MARK  0x7FFF000000000000ULL
-#define BIT_16_MARK  0xFFFF000000000000ULL
-#define NAN_ALL_MARK 0x7FF7000000000000ULL
+typedef struct harpdata harpdata;
+typedef struct harpdict_d harpdict_d;
+typedef struct harplist_d harplist_d;
+typedef struct harpvtable harpvtable;
 
+typedef struct harpobjpool harpobjpool;
+typedef struct harpobj harpobj;
+
+typedef struct harpstr_d harpstr_d;
+typedef harpstr_d* harpstr;
+typedef harplist_d* harplist;
+struct harpfunc {
+    harpobj* name;
+};
+
+struct harpstr_d {
+    uint32_t len;
+    uint32_t hash;
+    wchar ptr[];
+};
+static harpstr harpstr_new(const wchar_t* buf, const uint32_t len) {
+    harpstr str = (harpstr)malloc(sizeof(harpstr_d) + len * sizeof(wchar));
+    str->len = len;
+    memcpy(str->ptr, buf, len * sizeof(wchar));
+    return str;
+}
+
+#if __cplusplus
+struct harpobj {
+    enum {
+        MARKED = 0x80000000, 
+    };
+    union {
+        harpstr s;
+        harplist li;
+        void* p;
+    }u;
+    uint32_t next;
+    uint32_t prev;
+    //uint8_t ptr[];
+    uint32_t refcnt;
+    harpobjtype objtype;
+    harpvtable* vtable;
+    void Init() { u.p = NULL; next = 0u; prev = 0u; refcnt = 0u; vtable = NULL; objtype = objt_null; }
+    inline void Delete() {
+        switch (objtype) {
+        case objt_str:
+            free(u.p);
+            break;
+        case objt_list:
+            u.li->Delete();
+            break;
+        }
+        u.p = NULL;
+        objtype = objt_null;
+        //원래 더 해야되는데.
+        
+    }
+    void Print();
+    void DebugPrint();
+    inline void IncRC() { refcnt++; }
+    inline void DecRC() { 
+        Harp_assert_dbg(refcnt > 0u, "[ERROR] try to dec refcnt, but refcnt == 0");
+        refcnt--; 
+        if (refcnt == 0u) { this->Delete(); } 
+    }
+
+    void Mark() {
+
+    }
+    void SetMark() { refcnt = refcnt | MARKED; }
+    bool IsMark() { return refcnt& MARKED; }
+    bool IsNull() { return u.p == NULL; }
+};
+
+
+struct harpvtable {
+    std::unordered_map<harpdata, harpdata> members;
+    std::unordered_map<harpdata, harpdata> methods;
+};
+
+
+
+struct harpdata {
+    union {
+        uintptr_t byte;
+        int64_t i64;
+        double f64;
+        char s8[8];
+        void* v;
+        struct harpobj* obj;
+    };
+    inline void SetInt(int64_t i);
+    inline void SetFloat(double d);
+    inline void SetObj(harpobj* obj);
+    inline void SetBool(bool b);
+    
+    inline int64_t GetInt();
+    inline harpstr GetStr();
+    bool isTrue();
+    inline void IncRC();
+    inline void decRC();
+    void Print();
+    void DebugPrint();
+    
+};
+
+
+
+constexpr uint64_t TAG_INT = (NAN_MARK | ((uintptr_t)TInt << 48));
+constexpr uint64_t TAG_OBJ = (NAN_MARK | ((uintptr_t)TObj << 48));
+constexpr uint64_t TAG_STR = (NAN_MARK | ((uintptr_t)TStr << 48));
+constexpr uint64_t TAG_FNC = (NAN_MARK | ((uintptr_t)TFnc << 48));
+constexpr uint64_t TAG_NULL = (NAN_MARK | ((uintptr_t)TNull << 48));
+constexpr uint64_t TAG_ERR = (SNAN_MARK | ((uintptr_t)TError << 48));
+
+constexpr uint64_t GET_TAGNO(const harpdata V) {
+    return ((((V).byte) & 0x000F000000000000ULL) >> 48);
+}
+constexpr uint64_t CHECK_TAG(const harpdata V) {
+    return (((V).byte) & BIT_16_MARK);
+}
+constexpr uint64_t CHECK_TAG15(const harpdata V) {
+    return (((V).byte) & BIT_15_MARK);
+}
+constexpr uint64_t CHECK_EXPONENT(const harpdata V) {
+    return (((V).byte) & INF_MARK);
+}
+constexpr uint64_t CHECK_INF(const harpdata V) {
+    return (((V).byte & 0x7FFFFFFFFFFFFFFFULL) == INF_MARK);
+}
+constexpr bool IF_INT(const harpdata V) { return ((CHECK_TAG(V)) == TAG_INT); }
+constexpr bool IF_OBJ(const harpdata V) { return ((CHECK_TAG(V)) == TAG_OBJ); }
+constexpr bool IF_NULL(const harpdata V) {
+    return ((CHECK_TAG(V)) == TAG_NULL);
+}
+
+constexpr bool IF_FLOAT(const harpdata V) {
+    return ((CHECK_EXPONENT(V) != INF_MARK) || CHECK_INF(V));
+}
+//prev : 7FF7 == 7FF0
+constexpr bool IF_NAN(const harpdata V) {
+    return (((V).byte & 0x7FFFFFFFFFFFFFFFLLU) == 0x7FF0000000000000LLU);
+}
+constexpr bool IF_ERR(const harpdata V) {
+    return (IF_NAN(V) || ((CHECK_TAG(V)) == TAG_ERR));
+}
+
+#define IF_INT_NEG(V) ((V).byte&0x0000800000000000)
+
+constexpr uint64_t ENCODE_INT32(uint32_t i) {
+    return 	(TAG_INT | (uint64_t)(i));
+}
+constexpr uint64_t ENCODE_INT(uint64_t i) { return  (TAG_INT | ((uint64_t)(i)&BIT_48)); }
+constexpr uint64_t ENCODE_OBJ(void* p) { return  (TAG_OBJ | ((uint64_t)(p)&BIT_48)); }
+//constexpr uint64_t ENCODE_STR(const harpdata d) { return (TAG_STR | (d.byte)); }
+constexpr uint64_t ENCODE_ERR(uint32_t i) { return  (TAG_ERR | ((uint32_t)(i))); }
+
+
+constexpr uint32_t DECODE_INT32(const harpdata V) {
+    return ((int32_t)((V).byte & 0xFFFFFFFF));
+}
+
+#define DECODE_INT(V) ((int64_t)((V).byte&BIT_48))
+
+#define DEC_NORM_INT(V) IF_INT_NEG(V)?\
+    (((int64_t)((V).byte&BIT_48))|0xFFFF000000000000)\
+    :((int64_t)((V).byte&BIT_48))
+#define DECODE_FLOAT(V) ((V).f64)
+constexpr harpobj* DECODE_OBJ(const harpdata V) { return 	((harpobj*)(void*)((V.byte) & BIT_48)); }
+
+#define INT_CALC_NEW(N1, S, N2) ENCODE_INT((DECODE_INT(N1)) S (DECODE_INT(N2)))
+//#define INT_CALC_IN(N1, S, N2) DECODE_INT(N1) S DECODE_INT(N2)
+
+void harpdata::SetInt(int64_t i)  {
+    byte = ENCODE_INT(i);
+}
+inline void harpdata::SetFloat(double d) {
+    f64 = d;
+}
+inline void harpdata::SetObj(harpobj* obj) {
+    byte = ENCODE_OBJ(obj);
+}
+inline void harpdata::SetBool(bool b) {
+    byte = ENCODE_INT(b);
+}
+
+inline int64_t harpdata::GetInt() {
+    return DEC_NORM_INT(*this);
+}
+inline harpstr harpdata::GetStr() {
+    return DECODE_OBJ(*this)->u.s;
+}
+bool harpdata::isTrue() {
+    return false;
+}
+inline void harpdata::IncRC() {
+    if (IF_OBJ(*this)) DECODE_OBJ(*this)->IncRC();
+}
+inline void harpdata::decRC() {
+    if (IF_OBJ(*this)) DECODE_OBJ(*this)->DecRC();
+}
+void harpdata::Print() {
+    const uint64_t n1_tag = CHECK_TAG15(*this);
+    if (IF_FLOAT(*this)) {
+        printf("%lf", f64);
+    }
+    switch (n1_tag) {
+    case TAG_INT:
+        printf("%lld", DEC_NORM_INT(*this));
+        break;
+    case TAG_OBJ:
+        DECODE_OBJ(*this)->Print();
+        break;
+    }
+}
+void harpdata::DebugPrint() {
+    const uint64_t n1_tag = CHECK_TAG15(*this);
+    if (IF_FLOAT(*this)) {
+        printf("[fload %lf]", f64);
+    }
+    switch (n1_tag) {
+    case TAG_INT:
+        printf("[int %lld]", DEC_NORM_INT(*this));
+        break;
+    case TAG_OBJ:
+        DECODE_OBJ(*this)->DebugPrint();
+        break;
+    }
+}
+static harpobj harpobj_new(void* ptr, harpobjtype obj_t) {
+    harpobj obj;
+    obj.Init();
+    obj.refcnt = 1u;
+    obj.u.p = ptr;
+    obj.objtype = obj_t;
+    return obj;
+}
+
+typedef struct harppair {
+    harpdata key;
+    harpdata val;
+} harppair;
+struct harpdict_d {
+    uint32_t len;//점유 중
+    uint32_t capa;
+    uint32_t tomb_cnt;
+    uint32_t head_len;
+    uint8_t* head;
+    harppair dict[];
+};
+struct harplist_d {
+    uint32_t len;
+    uint32_t capa;
+    harpdata arr[];
+    void Print() {
+        putchar('[');
+        for (uint32_t i = 0; i < len; i++) {
+            arr[i].Print();
+            putchar(',');
+            putchar(' ');
+        }
+        putchar(']');
+    }
+    void DebugPrint() {
+        printf("[list 0x%X (%u/%u)]\n", this->arr, len, capa);
+        putchar('[');
+        for (uint32_t i = 0; i < len; i++) {
+            arr[i].DebugPrint();
+            putchar(',');
+            putchar(' ');
+        }
+        putchar(']');
+    }
+    void Delete() {
+        for (uint32_t i = 0u; i < len; i++) {
+            arr[i].decRC();
+        }
+    }
+};
+
+
+void harpobj::Print() {
+    switch (objtype) {
+    case objt_list:
+        u.li->Print();
+        break;
+    case objt_str:
+        wprintf(L"%.*s", u.s->len, u.s->ptr);
+        break;
+    }
+}
+
+void harpobj::DebugPrint() {
+    printf("[obj 0x%X rc=%u obj_t=%u]\n", this, refcnt, objtype);
+    switch (objtype) {
+    case objt_list:
+        putchar('[');
+        for (uint32_t i = 0; i < u.li->len; i++) {
+            u.li->DebugPrint();
+            putchar(',');
+            putchar(' ');
+        }
+        putchar(']');
+        break;
+    case objt_str:
+        wprintf(L"%.*s", u.s->len, u.s->ptr);
+        break;
+    }
+}
+
+#else
 #define TAG_INT   (NAN_MARK  | ((uintptr_t)TInt<<48))
 #define TAG_OBJ   (NAN_MARK  | ((uintptr_t)TObj<<48))
-#define TAG_INSTR (NAN_MARK  | ((uintptr_t)TInStr<<48))
+#define TAG_STR (NAN_MARK  | ((uintptr_t)TStr<<48))
 #define TAG_FNC   (NAN_MARK  | ((uintptr_t)TFnc<<48))
 #define TAG_NULL  (NAN_MARK  | ((uintptr_t)TNull<<48))
 #define TAG_ERR   (SNAN_MARK | ((uintptr_t)TError<<48))
-#define BIT_48  0x0000FFFFFFFFFFFFULL
+
 
 #define GET_TAGNO(V)      ((((V).byte)&0x000F000000000000ULL) >> 48)
 #define CHECK_TAG(V)      (((V).byte)&BIT_16_MARK)
@@ -116,7 +428,7 @@ enum rterrtype {
 #define ENCODE_INT32(i)	(TAG_INT | ((uint32_t)(i)))
 #define ENCODE_INT(i)   (TAG_INT | ((uint64_t)(i) & BIT_48))
 #define ENCODE_OBJ(p)   (TAG_OBJ | ((uint64_t)(p) & BIT_48))
-#define ENCODE_INSTR(d) (TAG_INSTR | (d.byte))
+#define ENCODE_STR(d) (TAG_STR | (d.byte))
 #define ENCODE_ERR(i)   (TAG_ERR | ((uint32_t)(i)))
 
 
@@ -124,30 +436,16 @@ enum rterrtype {
 
 #define DECODE_INT(V) ((int64_t)((V).byte&BIT_48))
 
-#define DECODE_INT_C(V) IF_INT_NEG(V)?\
+#define DEC_NORM_INT(V) IF_INT_NEG(V)?\
     (((int64_t)((V).byte&BIT_48))|0xFFFF000000000000)\
     :((int64_t)((V).byte&BIT_48))
 #define DECODE_FLOAT(V) ((V).f64)
-#define DECODE_OBJ(V)	((void*)((V)&BIT_48))
+#define DECODE_OBJ(V)	((harpobj*)(void*)((V)&BIT_48))
 
 #define INT_CALC_NEW(N1, S, N2) ENCODE_INT((DECODE_INT(N1)) S (DECODE_INT(N2)))
 //#define INT_CALC_IN(N1, S, N2) DECODE_INT(N1) S DECODE_INT(N2)
-typedef struct harpobj {
-    uint32_t len;
-    uint32_t poolidx;
-    uint8_t ptr[];
-}harpobj;
-typedef struct harpdata {
-    union {
-        uintptr_t byte;
-        int64_t i64;
-        double f64;
-        char s8[8];
-        void* v;
-        struct harpobj* obj;
-    };
-}harpdata;
 
+#endif
 static const harpdata harpdata_calc(const harpdata n1, const harpdata n2, const uint8_t op) {
     harpdata res;
     // val & 7FF == inf?{
@@ -173,10 +471,10 @@ static const harpdata harpdata_calc(const harpdata n1, const harpdata n2, const 
             case op_mul: res.byte = INT_CALC_NEW(n1, *, n2); break;
             case op_div: res.byte = INT_CALC_NEW(n1, / , n2); break;
             case op_mod: res.byte = INT_CALC_NEW(n1, %, n2); break;
-            case op_less: res.byte = INT_CALC_NEW(n1, < , n2); break;
-            case op_less2: res.byte = INT_CALC_NEW(n1, <= , n2); break;
-            case op_more: res.byte = INT_CALC_NEW(n1, > , n2); break;
-            case op_more2: res.byte = INT_CALC_NEW(n1, >= , n2); break;
+            case op_lt: res.byte = INT_CALC_NEW(n1, < , n2); break;
+            case op_lte: res.byte = INT_CALC_NEW(n1, <= , n2); break;
+            case op_gt: res.byte = INT_CALC_NEW(n1, > , n2); break;
+            case op_gte: res.byte = INT_CALC_NEW(n1, >= , n2); break;
             case op_eq: res.byte = INT_CALC_NEW(n1, == , n2); break;
             case op_neq: res.byte = INT_CALC_NEW(n1, != , n2); break;
             case op_pow: res.byte = ENCODE_INT(pow((double)DECODE_INT(n1), (double)DECODE_INT(n2)));
@@ -193,10 +491,10 @@ static const harpdata harpdata_calc(const harpdata n1, const harpdata n2, const 
             case op_mul:   res.f64 = (double)DECODE_INT(n1) * n2.f64; break;
             case op_div:   res.f64 = (double)DECODE_INT(n1) / n2.f64; break;
             case op_mod:   res.f64 = fmod((double)DECODE_INT(n1), n2.f64); break;
-            case op_less:  res.byte = ENCODE_INT((double)DECODE_INT(n1) < n2.f64); break;
-            case op_less2: res.byte = ENCODE_INT((double)DECODE_INT(n1) <= n2.f64); break;
-            case op_more:  res.byte = ENCODE_INT((double)DECODE_INT(n1) > n2.f64); break;
-            case op_more2: res.byte = ENCODE_INT((double)DECODE_INT(n1) >= n2.f64); break;
+            case op_lt:  res.byte = ENCODE_INT((double)DECODE_INT(n1) < n2.f64); break;
+            case op_lte: res.byte = ENCODE_INT((double)DECODE_INT(n1) <= n2.f64); break;
+            case op_gt:  res.byte = ENCODE_INT((double)DECODE_INT(n1) > n2.f64); break;
+            case op_gte: res.byte = ENCODE_INT((double)DECODE_INT(n1) >= n2.f64); break;
             case op_eq:    res.byte = ENCODE_INT((double)DECODE_INT(n1) == n2.f64); break;
             case op_neq:   res.byte = ENCODE_INT((double)DECODE_INT(n1) != n2.f64); break;
             case op_pow:   res.f64 = pow((double)DECODE_INT(n1), n2.f64); break;
@@ -213,10 +511,10 @@ static const harpdata harpdata_calc(const harpdata n1, const harpdata n2, const 
             case op_mul:res.f64 = n1.f64 * n2.f64; break;
             case op_div:res.f64 = n1.f64 / n2.f64; break;
             case op_mod:   res.f64 = fmod(n1.f64, n2.f64); break;
-            case op_less:  res.byte = ENCODE_INT(n1.f64 < n2.f64); break;
-            case op_less2: res.byte = ENCODE_INT(n1.f64 <= n2.f64);  break;
-            case op_more:  res.byte = ENCODE_INT(n1.f64 > n2.f64); break;
-            case op_more2: res.byte = ENCODE_INT(n1.f64 >= n2.f64);  break;
+            case op_lt:  res.byte = ENCODE_INT(n1.f64 < n2.f64); break;
+            case op_lte: res.byte = ENCODE_INT(n1.f64 <= n2.f64);  break;
+            case op_gt:  res.byte = ENCODE_INT(n1.f64 > n2.f64); break;
+            case op_gte: res.byte = ENCODE_INT(n1.f64 >= n2.f64);  break;
             case op_eq:    res.byte = ENCODE_INT(n1.f64 == n2.f64);  break;
             case op_neq:   res.byte = ENCODE_INT(n1.f64 != n2.f64);  break;
             case op_pow:   res.f64 = pow(n1.f64, n2.f64);  break;
@@ -232,10 +530,10 @@ static const harpdata harpdata_calc(const harpdata n1, const harpdata n2, const 
             case op_mul:   res.f64 = n1.f64 * (double)DECODE_INT(n2); break;
             case op_div:   res.f64 = n1.f64 / (double)DECODE_INT(n2); break;
             case op_mod:   res.f64 = fmod(n1.f64, (double)DECODE_INT(n2)); break;
-            case op_less:  res.byte = ENCODE_INT(n1.f64 < (double)DECODE_INT(n2)); break;
-            case op_less2: res.byte = ENCODE_INT(n1.f64 <= (double)DECODE_INT(n2)); break;
-            case op_more:  res.byte = ENCODE_INT(n1.f64 > (double)DECODE_INT(n2)); break;
-            case op_more2: res.byte = ENCODE_INT(n1.f64 >= (double)DECODE_INT(n2)); break;
+            case op_lt:  res.byte = ENCODE_INT(n1.f64 < (double)DECODE_INT(n2)); break;
+            case op_lte: res.byte = ENCODE_INT(n1.f64 <= (double)DECODE_INT(n2)); break;
+            case op_gt:  res.byte = ENCODE_INT(n1.f64 > (double)DECODE_INT(n2)); break;
+            case op_gte: res.byte = ENCODE_INT(n1.f64 >= (double)DECODE_INT(n2)); break;
             case op_eq:    res.byte = ENCODE_INT(n1.f64 == (double)DECODE_INT(n2)); break;
             case op_neq:   res.byte = ENCODE_INT(n1.f64 != (double)DECODE_INT(n2)); break;
             case op_pow:   res.f64 = pow(n1.f64, (double)DECODE_INT(n2)); break;
@@ -289,10 +587,10 @@ static const harpdata harpdata_calc2(const harpdata n1, const harpdata n2, const
             case op_mul: res.byte = INT_CALC_NEW(n1, *, n2); break;
             case op_div: res.byte = INT_CALC_NEW(n1, / , n2); break;
             case op_mod: res.byte = INT_CALC_NEW(n1, %, n2); break;
-            case op_less: res.byte = INT_CALC_NEW(n1, < , n2); break;
-            case op_less2: res.byte = INT_CALC_NEW(n1, <= , n2); break;
-            case op_more: res.byte = INT_CALC_NEW(n1, > , n2); break;
-            case op_more2: res.byte = INT_CALC_NEW(n1, >= , n2); break;
+            case op_lt: res.byte = INT_CALC_NEW(n1, < , n2); break;
+            case op_lte: res.byte = INT_CALC_NEW(n1, <= , n2); break;
+            case op_gt: res.byte = INT_CALC_NEW(n1, > , n2); break;
+            case op_gte: res.byte = INT_CALC_NEW(n1, >= , n2); break;
             case op_eq: res.byte = INT_CALC_NEW(n1, == , n2); break;
             case op_neq: res.byte = INT_CALC_NEW(n1, != , n2); break;
             case op_pow: res.byte = ENCODE_INT(pow((double)DECODE_INT(n1), (double)DECODE_INT(n2)));
@@ -309,10 +607,10 @@ static const harpdata harpdata_calc2(const harpdata n1, const harpdata n2, const
             case op_mul:   res.f64 = (double)DECODE_INT(n1) * n2.f64; break;
             case op_div:   res.f64 = (double)DECODE_INT(n1) / n2.f64; break;
             case op_mod:   res.f64 = fmod((double)DECODE_INT(n1), n2.f64); break;
-            case op_less:  res.byte = ENCODE_INT((double)DECODE_INT(n1) < n2.f64); break;
-            case op_less2: res.byte = ENCODE_INT((double)DECODE_INT(n1) <= n2.f64); break;
-            case op_more:  res.byte = ENCODE_INT((double)DECODE_INT(n1) > n2.f64); break;
-            case op_more2: res.byte = ENCODE_INT((double)DECODE_INT(n1) >= n2.f64); break;
+            case op_lt:  res.byte = ENCODE_INT((double)DECODE_INT(n1) < n2.f64); break;
+            case op_lte: res.byte = ENCODE_INT((double)DECODE_INT(n1) <= n2.f64); break;
+            case op_gt:  res.byte = ENCODE_INT((double)DECODE_INT(n1) > n2.f64); break;
+            case op_gte: res.byte = ENCODE_INT((double)DECODE_INT(n1) >= n2.f64); break;
             case op_eq:    res.byte = ENCODE_INT((double)DECODE_INT(n1) == n2.f64); break;
             case op_neq:   res.byte = ENCODE_INT((double)DECODE_INT(n1) != n2.f64); break;
             case op_pow:   res.f64 = pow((double)DECODE_INT(n1), n2.f64); break;
@@ -329,10 +627,10 @@ static const harpdata harpdata_calc2(const harpdata n1, const harpdata n2, const
             case op_mul:res.f64 = n1.f64 * n2.f64; break;
             case op_div:res.f64 = n1.f64 / n2.f64; break;
             case op_mod:   res.f64 = fmod(n1.f64, n2.f64); break;
-            case op_less:  res.byte = ENCODE_INT(n1.f64 < n2.f64); break;
-            case op_less2: res.byte = ENCODE_INT(n1.f64 <= n2.f64);  break;
-            case op_more:  res.byte = ENCODE_INT(n1.f64 > n2.f64); break;
-            case op_more2: res.byte = ENCODE_INT(n1.f64 >= n2.f64);  break;
+            case op_lt:  res.byte = ENCODE_INT(n1.f64 < n2.f64); break;
+            case op_lte: res.byte = ENCODE_INT(n1.f64 <= n2.f64);  break;
+            case op_gt:  res.byte = ENCODE_INT(n1.f64 > n2.f64); break;
+            case op_gte: res.byte = ENCODE_INT(n1.f64 >= n2.f64);  break;
             case op_eq:    res.byte = ENCODE_INT(n1.f64 == n2.f64);  break;
             case op_neq:   res.byte = ENCODE_INT(n1.f64 != n2.f64);  break;
             case op_pow:   res.f64 = pow(n1.f64, n2.f64);  break;
@@ -348,10 +646,10 @@ static const harpdata harpdata_calc2(const harpdata n1, const harpdata n2, const
             case op_mul:   res.f64 = n1.f64 * (double)DECODE_INT(n2); break;
             case op_div:   res.f64 = n1.f64 / (double)DECODE_INT(n2); break;
             case op_mod:   res.f64 = fmod(n1.f64, (double)DECODE_INT(n2)); break;
-            case op_less:  res.byte = ENCODE_INT(n1.f64 < (double)DECODE_INT(n2)); break;
-            case op_less2: res.byte = ENCODE_INT(n1.f64 <= (double)DECODE_INT(n2)); break;
-            case op_more:  res.byte = ENCODE_INT(n1.f64 > (double)DECODE_INT(n2)); break;
-            case op_more2: res.byte = ENCODE_INT(n1.f64 >= (double)DECODE_INT(n2)); break;
+            case op_lt:  res.byte = ENCODE_INT(n1.f64 < (double)DECODE_INT(n2)); break;
+            case op_lte: res.byte = ENCODE_INT(n1.f64 <= (double)DECODE_INT(n2)); break;
+            case op_gt:  res.byte = ENCODE_INT(n1.f64 > (double)DECODE_INT(n2)); break;
+            case op_gte: res.byte = ENCODE_INT(n1.f64 >= (double)DECODE_INT(n2)); break;
             case op_eq:    res.byte = ENCODE_INT(n1.f64 == (double)DECODE_INT(n2)); break;
             case op_neq:   res.byte = ENCODE_INT(n1.f64 != (double)DECODE_INT(n2)); break;
             case op_pow:   res.f64 = pow(n1.f64, (double)DECODE_INT(n2)); break;
@@ -379,16 +677,15 @@ l_err:
 l_ret:
     return res;
 }
-static void harpdata_print(const harpdata n1) {
-    printf("%llX ", n1.byte);
-    if (IF_INT(n1)) { printf("[int] %lld", DECODE_INT_C(n1)); }
-    else if (IF_ERR(n1)) {
-        printf("[err] %lld", DECODE_INT_C(n1)); 
-    }
-    else if (IF_FLOAT(n1)) { printf("[float] %lf", (n1)); }
-    putchar('\n');
-}
-
+//static void harpdata_print(const harpdata n1) {
+//    printf("%llX ", n1.byte);
+//    if (IF_INT(n1)) { printf("[int] %lld", DECODE_INT_C(n1)); }
+//    else if (IF_ERR(n1)) {
+//        printf("[err] %lld", DECODE_INT_C(n1)); 
+//    }
+//    else if (IF_FLOAT(n1)) { printf("[float] %lf", (n1)); }
+//    putchar('\n');
+//}
 #ifdef __TESTMODE
 extern void harpdata_test();
 #endif

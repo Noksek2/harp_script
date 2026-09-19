@@ -32,16 +32,16 @@ void PrintBytecode() {
 
 	opp[op_or] = "OR";
 	opp[op_and] = "AND";
-	opp[op_not2] = "NOT2";
-	opp[op_equal2] = "EQUAL2";
-	opp[op_big2] = "BIG2";
-	opp[op_big] = "BIG";
-	opp[op_less2] = "LESS2";
-	opp[op_less] = "LESS";
-	opp[op_plus] = "PLUS";
-	opp[op_minus] = "MINUS";
-	opp[op_multi] = "MULTI";
-	opp[op_divi] = "DIVI";
+	//opp[op_not2] = "NOT2";
+	opp[op_eq] = "EQ";
+	opp[op_gte] = "GTE";
+	opp[op_gt] = "GT";
+	opp[op_lte] = "LTE";
+	opp[op_lt] = "LT";
+	opp[op_add] = "ADD";
+	opp[op_sub] = "SUB";
+	opp[op_mul] = "MUL";
+	opp[op_div] = "DIV";
 	opp[op_mod] = "MOD";
 	opp[op_pow] = "POW";
 	opp[op_min] = "MIN";
@@ -49,12 +49,12 @@ void PrintBytecode() {
 	opp[op_print] = "PRINT";
 	opp[op_out] = "OUT";
 
-	opp[op_add] = "ADD";
-	opp[op_sub] = "SUB";
-	opp[op_mul] = "MUL";
-	opp[op_div] = "DIV";
-	opp[op_modis] = "MODIS";
-	opp[op_powis] = "POWIS";
+	opp[op_addeq] = "ADDEQ";
+	opp[op_subeq] = "SUBEQ";
+	opp[op_muleq] = "MULEQ";
+	opp[op_diveq] = "DIVEQ";
+	opp[op_modeq] = "MODEQ";
+	opp[op_poweq] = "POWEQ";
 	opp[op_ang] = "ANG";
 	ofstream out("bytecode.txt");
 	out << "========symtable========\n";
@@ -63,8 +63,8 @@ void PrintBytecode() {
 	int buf_no;
 	for (int i = 0; i < exe.symtable.size(); i++) {
 		switch (exe.symtable[i].t) {
-		case Var: buf_no = 0; break;
-		case Func:buf_no = 1; break;
+		case SVar: buf_no = 0; break;
+		case SFunc:buf_no = 1; break;
 		default: buf_no = 2; break;
 		}
 		out << i << '\t' << buf[buf_no] << '\t' << exe.symtable[i].mem << '\t' 
@@ -75,6 +75,14 @@ void PrintBytecode() {
 		out << opp[bytecode[i].op] << " " << bytecode[i].opr << "\n";
 	}
 }
+
+enum RunFlag {
+	RunFlag_Dis,//printbytecode
+	RunFlag_Debug,
+	MAX_FLAG = 128,
+};
+bool g_runflags[MAX_FLAG];
+
 void check_argv(COMPILE* compile,int argc, wchar** argv, bool& b_outfile) {
 	//argc >= 2
 	wchar** const argv_org = argv;
@@ -98,26 +106,28 @@ int wmain(int argc, wchar** argv) {
 	wcout.imbue(locale("kor"));
 	COMPILE compile;
 	
-	bool b_outfile = true;
+	g_runflags[RunFlag_Dis] = true;
 	if (argc == 1) {
 		{
-			wstring file;
-			wcin >> file;
+			wcout << ">>";
+			wstring file(256, 0);
+			wcin.getline(&file[0], 256);
+			
 			compile.compile(file.c_str());
 		}
 	}
 	else {
-		check_argv(&compile, argc, argv, b_outfile);
+		check_argv(&compile, argc, argv, g_runflags[RunFlag_Dis]);
 	}
 	
 	
 	exe.endcompile();
 	
 	if (compile.err_cnt == 0U) {
-		if (b_outfile) PrintBytecode();
+		if (g_runflags[RunFlag_Dis]) PrintBytecode();
 		clock_t start, end;
 		start = clock();
-		exe.state();//바이트 코드 실행
+		exe.run();//바이트 코드 실행
 		end = clock();
 		cout << "Execute time : " << (end - start) / 1000.0;
 	}

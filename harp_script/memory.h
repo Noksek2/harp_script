@@ -3,30 +3,10 @@
 
 #include "def.h"
 
-static void* MEM_reserve(uint32_t max_capa) {
-	void* ptr = VirtualAlloc(
-		NULL,
-		max_capa,
-		MEM_RESERVE,
-		PAGE_READWRITE
-	);
-	Harp_assert(ptr != NULL, "[ERROR] memory allocate failed - reserve");
-	return ptr;
-}
-static void* MEM_commit(void* ptr, uint32_t len) {
-	void* nptr = VirtualAlloc(
-		ptr,
-		len,
-		MEM_COMMIT,
-		PAGE_READWRITE
-	);
-	Harp_assert(nptr != NULL, "[ERROR] memory allocate failed - commit");
-	return nptr;
-}
-static void MEM_free(void* ptr) {
-	VirtualFree(ptr, 0, MEM_RELEASE);
-}
-template <typename T>
+
+
+template <typename T, const uint64_t RES_CNT_MAX = _64MB>
+
 class MyMemStack {//성능 쓰레기같은 스택
 private:
 public:
@@ -34,29 +14,30 @@ public:
 	uint32_t m_len;
 	uint32_t m_capa;
 	//uint32_t m_reserved;
-	MyMemStack(uint32_t m_capa_max=_4KB) {
+	void Init(uint32_t m_capa_cnt = _4KB) {
 		m_len = 0u;
-		m_capa = m_capa_max;
-		m_stack = (T*)MEM_reserve(MEM_MAX);
-		m_stack = (T*)MEM_commit(m_stack, m_capa * sizeof(T));
-	}
-	void push(const T& dat) {
-		if (m_len == m_capa) {
-			m_capa <<= 1;
-			Harp_assert(m_capa*sizeof(T) <= MEM_MAX, "[ERROR] stack overflow");
-			m_stack = (T*)MEM_commit(m_stack, m_capa);
-		}
-		m_stack[m_len++] = dat;
+		m_capa = max(m_capa_cnt, _4KB / sizeof(T));
+		//Harp_assert(m_capa_cnt * sizeof(T) <= RES_MAX, "아 씨발년아");
+		//m_reserved = m_capa_cnt;
+		m_stack = (T*)MEM_reserve(RES_CNT_MAX, sizeof(T), RES_CNT_MAX * sizeof(T));
+		m_stack = (T*)MEM_commit(m_stack, m_capa, sizeof(T), RES_CNT_MAX * sizeof(T));
 	}
 	inline void reserve(uint32_t re_size) {
 		if (re_size > m_capa) {
+
 			while (re_size > m_capa)
 				m_capa <<= 1;
-			Harp_assert(m_capa * sizeof(T) <= MEM_MAX, "[ERROR] stack overflow");
-			m_stack = (T*)MEM_commit(m_stack, m_capa);
-			Harp_assert(m_stack != NULL, "[ERROR] vmem commit failed");
+			if (m_capa > RES_CNT_MAX) {
+				m_capa = RES_CNT_MAX;
+			}
+			m_stack = (T*)MEM_commit(m_stack, m_capa, sizeof(T), RES_CNT_MAX * sizeof(T));
 		}
-
+	}
+	void push(const T& dat) {
+		if (m_len >= m_capa) {
+			reserve(m_len + 1);
+		}
+		m_stack[m_len++] = dat;
 	}
 	inline void resize(uint32_t re_size) {
 		reserve(re_size);
@@ -85,7 +66,7 @@ public:
 	}
 };
 
-template <typename T>
+template <typename T, const uint64_t MEM_CNT_MAX = _64MB>
 class MyStack {
 private:
 public:
@@ -93,20 +74,19 @@ public:
 	uint32_t m_len;
 	uint32_t m_capa;
 	//uint32_t m_reserved;
-	MyStack(uint32_t _m_capa = _4KB) {
+	void Init(uint32_t _m_capa = _4KB) {
 		m_len = 0u;
 		m_capa = _m_capa;
-		m_stack = (T*)calloc(m_capa,sizeof(T));
+		m_stack = harp_calloc<T>(m_capa);
 		//m_stack = (T*)MEM_commit(m_stack, m_capa);
 	}
 	inline void reserve(uint32_t re_size) {
 		if (re_size > m_capa) {
 			while (re_size > m_capa)
 				m_capa <<= 1;
-			Harp_assert(m_capa * sizeof(T) <= MEM_MAX, "[ERROR] stack overflow");
-			T* newarr = (T*)realloc(m_stack, m_capa);
-			Harp_assert(newarr == NULL, "[ERROR] realloc failed");
-			free(m_stack);
+			Harp_assert(m_capa <= MEM_CNT_MAX, "[ERROR] reserve more than MEM_MAX");
+			T* newarr = harp_realloc<T>(m_stack, m_capa);
+			Harp_assert(newarr != NULL, "[ERROR] realloc failed");
 			m_stack = newarr;
 		}
 
@@ -117,12 +97,7 @@ public:
 	}
 	void push(const T& dat) {
 		if (m_len == m_capa) {
-			m_capa <<= 1;
-			Harp_assert(m_capa * sizeof(T) <= MEM_MAX, "[ERROR] stack overflow");
-			T* newarr = (T*)realloc(m_stack, m_capa * sizeof(T));
-			Harp_assert(newarr == NULL, "[ERROR] realloc failed");
-			free(m_stack);
-			m_stack = newarr;
+			reserve(m_len + 1);
 		}
 		m_stack[m_len++] = dat;
 	}
@@ -130,7 +105,7 @@ public:
 		reserve(re_size);
 		m_len = re_size;
 	}
-	
+
 	inline const uint32_t size() { return m_len; }
 	inline T pop() {
 		return m_stack[--m_len];

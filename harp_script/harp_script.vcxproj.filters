@@ -1,48 +1,51 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="compile.cpp">
+    <ClCompile Include="h_compile.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="execute.cpp">
+    <ClCompile Include="h_exec.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="express.cpp">
+    <ClCompile Include="h_expr.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="h_main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="infunc.cpp">
+    <ClCompile Include="h_infunc.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="harpdata.cpp">
+    <ClCompile Include="h_data.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="memory.h">
+    <ClInclude Include="h_mem.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="execute.h">
+    <ClInclude Include="h_exec.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="errormsg.h">
+    <ClInclude Include="h_errormsg.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="def.h">
+    <ClInclude Include="h_def.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="compile.h">
+    <ClInclude Include="h_compile.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="infunc.h">
+    <ClInclude Include="h_infunc.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="harpdata.h">
+    <ClInclude Include="h_data.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="h_head.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,4 +1,4 @@
-﻿#include "execute.h"
+﻿#include "h_exec.h"
 /*여기가 실행 부분.*/
 EXECUTE exe;
 MemoryInfo g_meminfo;

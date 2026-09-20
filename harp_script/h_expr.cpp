@@ -1,4 +1,4 @@
-﻿#include "compile.h"
+﻿#include "h_compile.h"
 void COMPILE::makearray() {//배열 만드는 곳
 	uint32_t arg = 0;
 	do {

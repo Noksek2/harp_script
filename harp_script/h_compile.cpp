@@ -1,4 +1,4 @@
-﻿#include "compile.h"
+﻿#include "h_compile.h"
 KEY key;
 void COMPILE::funcdef() {//함수 쓰지 마셈. 오류 걸림
 	uint32_t fndef_idx;

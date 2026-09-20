@@ -1,12 +1,11 @@
 ﻿
 #pragma once
 
-#include "def.h"
+#include "h_def.h"
 
 
 
 template <typename T, const uint64_t RES_CNT_MAX = _64MB>
-
 class MyMemStack {//성능 쓰레기같은 스택
 private:
 public:
@@ -66,6 +65,7 @@ public:
 	}
 };
 
+//Init, ~
 template <typename T, const uint64_t MEM_CNT_MAX = _64MB>
 class MyStack {
 private:
@@ -152,11 +152,14 @@ protected:
 	uint32_t free_len;//0번지는 빼므로 실제로는
 public:
 	void InitPool() {
+		objs.Init(_4MB);
 		freeobj = NULL;
 		free_len = 0u;
 		objs.m_len = 1u;
 		objs[0].Init();
 	}
+	//void ResetPool() {
+	//}
 	harpobj* GetFreeObj(){
 		harpobj* o;
 		if (freeobj != NULL) {

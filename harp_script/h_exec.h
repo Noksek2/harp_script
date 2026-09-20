@@ -1,7 +1,7 @@
 ﻿#pragma once
 /*별거 없음*/
-#include "def.h"
-#include "memory.h"
+#include "h_def.h"
+#include "h_mem.h"
 
 // dats = stack[len]
 

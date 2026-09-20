@@ -1,6 +1,6 @@
 ﻿#pragma once
 //#define fstr(a) (#a)
-#include "harpdata.h"
+#include "h_data.h"
 
 enum infunctype {
 	f_type,		//type()

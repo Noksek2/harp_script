@@ -4,7 +4,7 @@ Toy script by Noksek2
 lol
 
 */
-#include "compile.h"
+#include "h_compile.h"
 #include <time.h>
 
 RandomDevice* g_randdev;

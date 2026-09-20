@@ -1,12 +1,59 @@
 ﻿/* harp script v0.2.0 */
 
 #pragma once
-#include "execute.h"
-#include "errormsg.h"
+#include "h_exec.h"
+#include "h_errormsg.h"
 
 
 #define NEXT t=tok.back().next() //tok.back()하면 되는데 1년전에는 그걸 모름. 병진
+enum symtype{
+	Sym1_Pack,
+	Sym1_Modl,
+	Sym1_Func,
+	Sym1_Var,
+	//Sym_Class,
+	Sym2_Para
+};
+class SymbolTable;
+struct SymbolData{
+	harpstr name;
+	SymbolData* Parent;
+	MyStack<SymbolData> childs;
+	SymbolTable* symtable;
+	uint8_t sym1_typ;
+	uint8_t sym2_typ;
+	union {
+		struct {
+			int para_len;
+			int frame_len;
 
+		}f;
+		struct {
+			int member_cnt;
+
+		}c;
+	};
+	void Init(harpstr*) {}
+	void Delete(harpstr*) {}
+};
+class SymbolTable : public std::umap<std::wstring, SymbolData> {
+//#define PARENT std::umap<std::wstring, SymbolData> 
+public:
+	SymbolData* Find(const wstring& str) {
+		auto pair = this->find(str); 
+		if (pair == this->end())return NULL;
+		return &pair->second;
+	}
+#undef
+};///*
+//main:Ptr
+//global[
+//	"a":[sym_typ:modl name:"a" parent: path:"c:\\~~~" parent child:]
+//	"b":[sym_typ:modl name:"b" ]
+//  "c":[sym_typ:modl]
+//  "math" []
+//]
+//*/
 //template<typename K, typename V, const int CAPA>
 //struct TinyHashTable {
 //	K keymap[CAPA];

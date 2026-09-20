@@ -7,7 +7,7 @@
 // arr < 3
 
 /*런타임 시 사용하는 C 함수들*/
-#include "execute.h"
+#include "h_exec.h"
 
 HMODULE g_dll;
 dx_init dxlib_init;
@@ -32,8 +32,6 @@ dx_setarea setarea;
 dx_checksound checksound;
 
 CONSOLE_CURSOR_INFO cursorinfo;
-
-
 
 
 
@@ -353,6 +351,7 @@ void EXECUTE::callinfunc(infunctype t) {
 	//}
 }
 	bool EXECUTE::usefunc(const wstring & s) {
+
 	if (s == L"basic") {//basic은 기본적으로 include 됨.
 		pushinfunc(L"type", f_type);
 		pushinfunc(L"len", f_len);

@@ -1,9 +1,9 @@
 ﻿#ifndef __DEF_H__
 #define __DEF_H__
 
-#include "head.h"
-#include "harpdata.h"
-#include "infunc.h"
+#include "h_head.h"
+#include "h_data.h"
+#include "h_infunc.h"
 
 //using namespace std;
 

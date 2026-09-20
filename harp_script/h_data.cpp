@@ -1,5 +1,5 @@
 ﻿
-#include "harpdata.h"
+#include "h_data.h"
 void harpdata_test_calc(const harpdata& n1, const harpdata& n2) {
 	harpdata h;
 	printf("+  "); h = harpdata_calc(n1, n2, op_add); h.Print();

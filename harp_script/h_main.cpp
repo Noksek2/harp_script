@@ -7,21 +7,36 @@ lol
 #include "h_compile.h"
 #include <time.h>
 
+enum RunFlag {
+	RunFlag_Dis,//printbytecode
+	RunFlag_Debug,
+	RunFlag_Eng,
+	MAX_FLAG = 128,
+};
+
 RandomDevice* g_randdev;
 Bytecode bytecode;//아마도 바이트코드
+bool g_runflags[MAX_FLAG];
 
+
+// i:any
+// union<int,str,float>
+//i32 i64 i32 f64
 
 void PrintBytecode() {
 	const char* opp[100] = { 0 };
 	opp[op_push] = "PUSH";
 	opp[op_pop] = "POP";
-	opp[op_call] = "CALL";
-	opp[op_incall] = "INCALL";
 	opp[op_lit] = "LIT";
-	opp[op_lvar] = "LVAR";
-	opp[op_gvar] = "GVAR";
+	
 	opp[op_lstore] = "LSTORE";
-	opp[op_gstore] = "GSTORE";
+	opp[op_lload] = "LLOAD";
+	opp[op_call] = "CALL";
+	//opp[op_incall] = "INCALL";
+	//opp[op_gstore] = "GSTORE";
+	//opp[op_lvar] = "LVAR";
+	//opp[op_gvar] = "GVAR";
+	
 	opp[op_pushinfunc] = "PUSHINFUNC";
 	opp[op_pushfunc] = "PUSHFUNC";
 	//opp[op_pushprev,
@@ -65,28 +80,21 @@ void PrintBytecode() {
 	out << "no	type	mem	func	frame\n";
 	char buf[][7] = {"Var","Func","InFunc"};
 	int buf_no;
-	for (uint32_t i = 0; i < exe.symtable.size(); i++) {
-		switch (exe.symtable[i].t) {
-		case SVar: buf_no = 0; break;
-		case SFunc:buf_no = 1; break;
-		default: buf_no = 2; break;
-		}
-		out << i << '\t' << buf[buf_no] << '\t' << exe.symtable[i].mem << '\t' 
-			<< exe.symtable[i].func << "\t" << exe.symtable[i].frame << "\n";
-	}
+	//for (uint32_t i = 0; i < exe.symtable.size(); i++) {
+	//	switch (exe.symtable[i].t) {
+	//	case SVar: buf_no = 0; break;
+	//	case SFunc:buf_no = 1; break;
+	//	default: buf_no = 2; break;
+	//	}
+	//	out << i << '\t' << buf[buf_no] << '\t' << exe.symtable[i].mem << '\t' 
+	//		<< exe.symtable[i].func << "\t" << exe.symtable[i].frame << "\n";
+	//}
 	out << "\n\n\n========bytecode========\n";
 	for (uint32_t i = 0; i < bytecode.m_len; i++) {
 		out << opp[bytecode[i].op] << " " << bytecode[i].opr << "\n";
 	}
 }
 
-enum RunFlag {
-	RunFlag_Dis,//printbytecode
-	RunFlag_Debug,
-	RunFlag_Eng,
-	MAX_FLAG = 128,
-};
-bool g_runflags[MAX_FLAG];
 
 void check_argv(COMPILE* compile,int argc, wchar** argv, bool& b_outfile) {
 	//argc >= 2
@@ -113,7 +121,7 @@ void HarpContext_Delete(){
 		g_randdev = NULL;
 	}
 }
-void HaroContext_SetFlagDefault() {
+void HarpContext_SetFlagDefault() {
 	g_runflags[RunFlag_Dis] = true;
 	g_runflags[RunFlag_Eng] = true;
 }

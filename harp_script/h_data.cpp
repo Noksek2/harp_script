@@ -1,5 +1,63 @@
 ﻿
 #include "h_data.h"
+
+void harpdata::Print() const {
+	const uint64_t n1_tag = CHECK_TAG15(*this);
+	if (IF_FLOAT(*this)) {
+		printf("%lf", f64);
+	}
+	switch (n1_tag) {
+	case TAG_INT:
+		printf("%lld", DEC_NORM_INT(*this));
+		break;
+	case TAG_OBJ:
+		DECODE_OBJ(*this)->Print();
+		break;
+	}
+}
+void harpdata::DebugPrint() const {
+	const uint64_t n1_tag = CHECK_TAG15(*this);
+	if (IF_FLOAT(*this)) {
+		printf("[fload %lf]", f64);
+	}
+	switch (n1_tag) {
+	case TAG_INT:
+		printf("[int %lld]", DEC_NORM_INT(*this));
+		break;
+	case TAG_OBJ:
+		DECODE_OBJ(*this)->DebugPrint();
+		break;
+	}
+}
+
+void harpobj::Print()const {
+	switch (objtype) {
+	case objt_list:
+		u.li->Print();
+		break;
+	case objt_str:
+		wprintf(L"%.*s", u.s->len, u.s->ptr);
+		break;
+	}
+}
+
+void harpobj::DebugPrint() const {
+	printf("[obj 0x%llX rc=%u obj_t=%u]\n", (size_t)this, refcnt, objtype);
+	switch (objtype) {
+	case objt_list:
+		putchar('[');
+		for (uint32_t i = 0; i < u.li->len; i++) {
+			u.li->DebugPrint();
+			putchar(',');
+			putchar(' ');
+		}
+		putchar(']');
+		break;
+	case objt_str:
+		wprintf(L"%.*s", u.s->len, u.s->ptr);
+		break;
+	}
+}
 void harpdata_test_calc(const harpdata& n1, const harpdata& n2) {
 	harpdata h;
 	printf("+  "); h = harpdata_calc(n1, n2, op_add); h.Print();

@@ -2,6 +2,8 @@
 /*여기가 실행 부분.*/
 EXECUTE exe;
 MemoryInfo g_meminfo;
+harpobjpool* g_objpool;
+
 /* 그냥 C 함수들 */
 /*바이트 코드 분석하는 곳*/
 static void Exec_func_call(harpfunc_p fn, harpdata* N, uint32_t para_len) {

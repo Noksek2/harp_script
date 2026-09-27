@@ -134,11 +134,14 @@ static harpobj make_typestr_obj(harpdata dat) {
 
 }
 static harpdata make_typestr(harpdata n0) {
-
+	
 	harpobj* obj = g_objpool->Insert(make_typestr_obj(n0));
 
 	n0.DecRC();
-	n0.SetObj(obj);
+	//n0.SetObj(obj);
+	harpdata d;
+	d.SetObj(obj);
+	return d;
 }
 inline const harpdata harp_fclose(harpdata n0) {
 	harpdata h;
@@ -177,13 +180,13 @@ l_dec:
 }
 inline const harpdata harp_rand() {
 	harpdata d;
-	d.f64 = g_randdev->GetRand_f();
+	d.f64 = g_randdev->GetRand_f(0.0, 1.0);
 	return d;
 }
 inline const harpdata harp_rand(harpdata n0) {
 	harpdata d;
 	if (!IF_INT(n0)) goto l_err;
-	d.byte = DECODE_INT_V(g_randdev->GetRand_i(DECODE_INT(n0)));
+	d.byte = DECODE_INT_V(g_randdev->GetRand_i(0llu, DECODE_INT(n0)));
 	return d;
 l_err:
 	{

@@ -25,8 +25,10 @@ enum optype :uint8_t {
     op_call, // call [para_len], stack.pop()(stack.pop() * para_len)
     op_incall, 
     op_lit, //
-    op_lvar,
-    op_gvar,
+    op_lload,
+    op_gload,
+    //op_lvar,
+    //op_gvar,
     op_lstore,
     op_gstore,
     op_pushinfunc,
@@ -97,17 +99,70 @@ typedef struct harpobj harpobj;
 typedef struct harpstr_d harpstr_d;
 typedef harpstr_d* harpstr;
 typedef harplist_d* harplist;
+static harpstr harpstr_copy(harpstr str);
 
 struct harpstr_d {
     uint32_t len;
     uint32_t hash;
+    
+    uint32_t rc;
     wchar ptr[];
+    const bool Compare(const harpstr& s1) const {
+        if (s1 == this) return true;
+        if (s1->len != this->len) return false;
+        return memcmp(s1->ptr, this->ptr, s1->len * sizeof(wchar)) == 0;
+    }
+    harpstr Copy() { return harpstr_copy(this); }
+    void Print() const {
+        for (uint32_t i = 0; i < len; i++) {
+            putwchar(ptr[i]);
+        }
+    }
+    void Dump() {
+        wprintf(L"[harpstr] (len=%u hash=%X val=", len, hash);
+        Print();
+        printf(")\n");
+    }
+    void ToWstring(wchar_t* buf) {
+        memcpy(buf, ptr, sizeof((len) * sizeof(wchar)));
+        buf[len] = 0;
+    }
 };
+
+static void harpstr_sethash(harpstr str) {
+    uint32_t len = str->len;
+    uint32_t hash = 0u;
+    for (uint32_t idx = 0; idx < len; idx++)
+    {
+        hash ^= str->ptr[idx];
+        hash *= 16777619; // FNV prime
+    }
+    if (hash < 2u) hash = 2u;
+    str->hash = hash;
+}
+static harpstr harpstr_new(const void* ptr, const wchar_t* buf, const uint32_t len) {
+    harpstr str = (harpstr)ptr;
+    str->len = len;
+    memcpy(str->ptr, buf, len * sizeof(wchar));
+    harpstr_sethash(str);
+    return str;
+}
 static harpstr harpstr_new(const wchar_t* buf, const uint32_t len) {
+    //uint32_t str_sz = harp_align();
     harpstr str = (harpstr)malloc(sizeof(harpstr_d) + len * sizeof(wchar));
     str->len = len;
     memcpy(str->ptr, buf, len * sizeof(wchar));
+    harpstr_sethash(str);
     return str;
+}
+static harpstr harpstr_copy(harpstr str) {
+    uint32_t memsz = sizeof(harpstr_d) + str->len * sizeof(wchar);
+    harpstr newstr =(harpstr)calloc(1, memsz);
+    if (newstr == NULL) {
+        Harp_assert(newstr != NULL, "harpstr_copy failed : NULL RETURNED");
+    }
+    memcpy(newstr, str, memsz);
+    return newstr;
 }
 
 #if __cplusplus
@@ -127,22 +182,9 @@ struct harpobj {
     harpobjtype objtype;
     harpvtable* vtable;
     void Init() { u.p = NULL; next = 0u; prev = 0u; refcnt = 0u; vtable = NULL; objtype = objt_null; }
-    inline void Delete() {
-        switch (objtype) {
-        case objt_str:
-            free(u.p);
-            break;
-        case objt_list:
-            u.li->Delete();
-            break;
-        }
-        u.p = NULL;
-        objtype = objt_null;
-        //원래 더 해야되는데.
-        
-    }
-    void Print();
-    void DebugPrint();
+    inline void Delete();
+    void Print() const;
+    void DebugPrint() const;
     inline void IncRC() { refcnt++; }
     inline void DecRC() { 
         Harp_assert_dbg(refcnt > 0u, "[ERROR] try to dec refcnt, but refcnt == 0");
@@ -157,11 +199,45 @@ struct harpobj {
     bool IsMark() { return refcnt& MARKED; }
     bool IsNull() { return u.p == NULL; }
 };
-
+enum {
+    method_init_idx,
+    method_deinit_idx,
+    method_oppow_idx,
+    method_opmul_idx,
+    method_opdiv_idx,
+    method_opmod_idx,
+    method_opadd_idx,
+    method_opsub_idx,
+    method_oplt_idx,
+    method_oplte_idx,
+    method_opgt_idx,
+    method_opgte_idx,
+    method_opeq_idx,
+    method_opneq_idx,
+};
 
 struct harpvtable {
-    std::unordered_map<harpdata, harpdata> members;
-    std::unordered_map<harpdata, harpdata> methods;
+    
+    
+    //런타임 단계
+    MyStack<harpfunc_p, 256u> methods; //연산자, 생성자 등 오버라이드는 맨앞에서 자동 생성.
+    MyStack<harpdata, 256u> members; //멤버는 고정되어 있음.
+
+    //compile 단계에서 이렇게 번역...?
+    //harpfunc_p fn_op_add;
+    //harpfunc_p fn_op_sub;
+    //harpfunc_p fn_op_mul;
+    //harpfunc_p fn_op_mod;
+    //harpfunc_p fn_op_div;
+    //harpfunc_p fn_op_pow;
+    //harpfunc_p fn_op_lt;
+    //harpfunc_p fn_op_lte;
+    //harpfunc_p fn_op_gt;
+    //harpfunc_p fn_op_gte;
+    //harpfunc_p fn_op_eq;
+    //harpfunc_p fn_op_neq;
+    //harpfunc_p fn_op_and;
+    //harpfunc_p fn_op_or;
 };
 
 
@@ -188,8 +264,8 @@ struct harpdata {
     const bool isTrue() const;
     inline void IncRC();
     inline void DecRC();
-    void Print();
-    void DebugPrint();
+    void Print() const;
+    void DebugPrint() const ;
     inline const uint32_t GetType() const;
 };
 
@@ -201,9 +277,39 @@ struct harptype {
 typedef const harpdata(*harpfunc_p) (const harpdata*, const uint32_t);
 struct harpfunc {
     harpfunc_p fn;
-    harpstr* name;
+    harpstr name;
     uint8_t frame_len;
     uint8_t para_len;
+    uint8_t types[8];//0 1 2 3 4 5 6 7 8 p=parent() c=child() s:parent
+    harptype types_etc[];
+};
+struct harpvtableinfo {
+    //그전에는 이렇게?
+    MyHashTable<harpstr, harpdata> members;
+    MyHashTable<harpstr, harpdata> methods;
+
+};
+struct harpclass {
+    //harpfunc_p fn;
+    //harpfunc_p fn_op_add;
+    //harpfunc_p fn_op_sub;
+    //harpfunc_p fn_op_mul;
+    //harpfunc_p fn_op_div;
+    //harpfunc_p fn_op_mod;
+    //harpfunc_p fn_op_pow;
+    //harpfunc_p fn_op_lt;
+    //harpfunc_p fn_op_lte;
+    //harpfunc_p fn_op_gt;
+    //harpfunc_p fn_op_gte;
+    //harpfunc_p fn_op_;
+    union {
+        harpvtable* vtable;
+        harpvtableinfo* vtableinfo;//컴파일 타임에만 사용
+    };
+    harpstr name;
+    uint8_t member_len;
+    uint8_t method_len;
+    uint8_t enum_len;
     uint8_t types[8];//0 1 2 3 4 5 6 7 8 p=parent() c=child() s:parent
     harptype types_etc[];
 };
@@ -324,34 +430,7 @@ inline void harpdata::IncRC() {
 inline void harpdata::DecRC() {
     if (IF_OBJ(*this)) DECODE_OBJ(*this)->DecRC();
 }
-void harpdata::Print() {
-    const uint64_t n1_tag = CHECK_TAG15(*this);
-    if (IF_FLOAT(*this)) {
-        printf("%lf", f64);
-    }
-    switch (n1_tag) {
-    case TAG_INT:
-        printf("%lld", DEC_NORM_INT(*this));
-        break;
-    case TAG_OBJ:
-        DECODE_OBJ(*this)->Print();
-        break;
-    }
-}
-void harpdata::DebugPrint() {
-    const uint64_t n1_tag = CHECK_TAG15(*this);
-    if (IF_FLOAT(*this)) {
-        printf("[fload %lf]", f64);
-    }
-    switch (n1_tag) {
-    case TAG_INT:
-        printf("[int %lld]", DEC_NORM_INT(*this));
-        break;
-    case TAG_OBJ:
-        DECODE_OBJ(*this)->DebugPrint();
-        break;
-    }
-}
+
 inline const uint32_t harpdata::GetType() const {
     uint32_t tag;
     if ((byte & INF_MARK) == INF_MARK) {
@@ -415,7 +494,7 @@ struct harplist_d {
     uint32_t len;
     uint32_t capa;
     harpdata arr[];
-    void Print() {
+    void Print() const {
         putchar('[');
         for (uint32_t i = 0; i < len; i++) {
             arr[i].Print();
@@ -424,8 +503,8 @@ struct harplist_d {
         }
         putchar(']');
     }
-    void DebugPrint() {
-        printf("[list 0x%X (%u/%u)]\n", this->arr, len, capa);
+    void DebugPrint() const {
+        printf("[list 0x%llX (%u/%u)]\n", (size_t)this->arr, len, capa);
         putchar('[');
         for (uint32_t i = 0; i < len; i++) {
             arr[i].DebugPrint();
@@ -442,34 +521,21 @@ struct harplist_d {
 };
 
 
-void harpobj::Print() {
+inline void harpobj::Delete() {
     switch (objtype) {
-    case objt_list:
-        u.li->Print();
-        break;
     case objt_str:
-        wprintf(L"%.*s", u.s->len, u.s->ptr);
+        free(u.p);
+        break;
+    case objt_list:
+        u.li->Delete();
         break;
     }
+    u.p = NULL;
+    objtype = objt_null;
+    //원래 더 해야되는데.
+
 }
 
-void harpobj::DebugPrint() {
-    printf("[obj 0x%X rc=%u obj_t=%u]\n", this, refcnt, objtype);
-    switch (objtype) {
-    case objt_list:
-        putchar('[');
-        for (uint32_t i = 0; i < u.li->len; i++) {
-            u.li->DebugPrint();
-            putchar(',');
-            putchar(' ');
-        }
-        putchar(']');
-        break;
-    case objt_str:
-        wprintf(L"%.*s", u.s->len, u.s->ptr);
-        break;
-    }
-}
 
 #else
 #define TAG_INT   (NAN_MARK  | ((uintptr_t)TInt<<48))
@@ -536,6 +602,9 @@ static const harpdata harpdata_calc_1(const harpdata n1, const uint8_t op) {
         else if (n1.GetType() == TObj) {}
         else goto l_err;
         break;
+    default:
+        res.byte = 0u;
+        break;
     }
     
     return res;
@@ -575,7 +644,7 @@ static const harpdata harpdata_calc(const harpdata n1, const harpdata n2, const 
         case op_gte: res.byte = ENCODE_BOOL(n1.byte >= n2.byte); break;
         case op_eq: res.byte = ENCODE_BOOL(n1.byte == n2.byte); break;
         case op_neq: res.byte = ENCODE_BOOL(n1.byte != n2.byte); break;
-        case op_pow: res.byte = ENCODE_INT(pow((double)DECODE_INT(n1), (double)DECODE_INT(n2)));
+        case op_pow: res.byte = ENCODE_INT((int64_t)pow((double)DECODE_INT(n1), (double)DECODE_INT(n2)));
             break;
         default: goto l_err;
         }
@@ -642,6 +711,7 @@ static const harpdata harpdata_calc(const harpdata n1, const harpdata n2, const 
             const uint32_t n2_type = GET_TAGNO(n2);
             if (n1_type == n2_type) {
                 switch (n1_type) {
+                case TAG_INT:
                 default:
                     goto l_err;
                     //goto l_err;

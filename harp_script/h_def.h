@@ -8,38 +8,19 @@
 //using namespace std;
 
 struct RandomDevice {
-	std::mt19937* gen;
-	std::uniform_int_distribution<int64_t>* dis_int;
-	std::uniform_int_distribution<double>* dis_float;
-	RandomDevice() {
-		std::random_device rd;
-		gen = new std::mt19937(rd());
-		dis_int = new std::uniform_int_distribution<int64_t>(NORM_INT48_MIN, NORM_INT48_MAX);
-		dis_float = new std::uniform_int_distribution<double>(0.0, 1.0);
-		constexpr auto d = NORM_INT48_MIN + NORM_INT48_MAX;
+	static std::mt19937& GetEngine() {
+		static std::random_device rd;
+		static std::mt19937 gen(rd());
+		return gen;
 	}
-	inline int64_t GetRand_i() {
-		return (*dis_int)(gen);
+	
+	static inline int64_t GetRand_i(const int64_t _min, const int64_t _max) {
+		std::uniform_int_distribution<int64_t> dis_int(NORM_INT48_MIN, NORM_INT48_MAX);
+		return dis_int(GetEngine());
 	}
-	inline double GetRand_f() {
-		return (*dis_float)(gen);
-	}
-	inline int64_t GetRand_i(int64_t _max) {
-		int64_t res = (*dis_int)(gen);
-		return res % (_max + 1);
-		//() % (_max - _min); 0 10 _min + _max+_min
-	}
-	inline int64_t GetRand_i(const int64_t _min, const int64_t _max) {
-			int64_t res = (*dis_int)(gen);
-			return _max + res % (_min - _max + 1);
-	}
-	~RandomDevice() {
-		if(dis_float )delete dis_float;
-		if(dis_int )delete dis_int;
-		if(gen )delete gen;
-		dis_float = NULL;
-		dis_int = NULL;
-		gen = NULL;
+	static inline double GetRand_f(double _min, double _max) {
+		std::uniform_real_distribution<double> dis_f(_min, _max);
+		return dis_f(GetEngine());
 	}
 	//140, 737, 488, 355, 327
 	//-140,737,488,355,328
@@ -64,7 +45,7 @@ enum ttype : uint8_t{
 	_loop,
 	_break,
 	_skip,
-	_jump,
+	//_jump,
 	_switch,
 	_case,
 	_func,
@@ -135,9 +116,67 @@ enum ttype : uint8_t{
 	TOK_MAX=128,
 };
 enum symtype : uint8_t {
-	SVar,
+	SPack,//Package = Directory 
+	SModl,//Module = Source
+	//SPara,
+	SLocal,//Para C Local
+	SMember,
+
 	SFnc, SFunc= SFnc,
-	SInFnc,
+	SMethod,
+	SInFnc, SInFunc= SInFnc,
+	SClass,
+	SEnum,
+	SLabel,
+	//SMacro,
+	//SName,//익명
+};
+//Pack 1o : 1o에서 Pack 접근 가능. (1 -> Pack)
+//class_D : 다른 클래스에서 
+//1.class 2.Func 3. Method7.Modl_d 8 .Modl
+// Pack <- Cox : Pack를 다른 클래스에서 참조 가능, 같은 클래스는 참조 불가능
+//Pack <- Coo Foo Moo
+//Modl <- Coo Foo Moo
+//Class <- Coo Foo Moo
+//Method <- C
+//Class 1o 2o 
+//Para(Method) 
+//Method/Local/Variable부터는 접근 불가능
+
+//메서드, 로컬변수, 멤버변수는 static(전역변수)가 아닌이상 외부에서 접근 불가능
+//따라서 접근 가능한 녀석은 Pack, Modl, Enum, Class, Func등에 한정함
+//나머지는 런타임 시간이나 실제 변수 멤버에서 접근할 수 있는 형태만 고려함.
+
+/*
+Pack
+ㄴModl
+
+Modl
+ㄴFnc
+ㄴInFnc
+ㄴClass
+(ㄴName)
+
+Class
+ㄴEnum
+ㄴMethod=LocalFnc
+ㄴMember
+GlobalFnc
+ㄴPara
+ㄴLocal
+InFnc
+ㄴPara
+
+
+*/
+enum symtype2 : uint8_t{
+	S2None,
+	//Sym_Class,
+	SPara,
+	SLocal,
+
+	//SFncMethod
+	//SFnc
 };
 
 extern void HarpContext_Init();

@@ -1,51 +1,207 @@
 ﻿/* harp script v0.2.0 */
-
+// harp compiler
+// harp script is not script language 
 #pragma once
 #include "h_exec.h"
 #include "h_errormsg.h"
 
 
 #define NEXT t=tok.back().next() //tok.back()하면 되는데 1년전에는 그걸 모름. 병진
-enum symtype{
-	Sym1_Pack,
-	Sym1_Modl,
-	Sym1_Func,
-	Sym1_Var,
-	//Sym_Class,
-	Sym2_Para
-};
+
 class SymbolTable;
+#ifdef _DEBUG
+typedef symtype SymType;
+typedef symtype2 SymType2;
+#else
+typedef uint8_t SymType;
+typedef uint8_t SymType2;
+#endif
+static wchar_t g_symtypemap[128][8] = {
+};
+static void symtypemap_init() {
+	wcscpy_s(g_symtypemap[SLocal], L"local");
+	wcscpy_s(g_symtypemap[SMember], L"member");
+	wcscpy_s(g_symtypemap[SMethod], L"method");
+	wcscpy_s(g_symtypemap[SFunc], L"func");
+	wcscpy_s(g_symtypemap[SClass], L"class");
+	wcscpy_s(g_symtypemap[SPack], L"pack");
+	wcscpy_s(g_symtypemap[SModl], L"modl");
+	wcscpy_s(g_symtypemap[SEnum], L"enum");
+	wcscpy_s(g_symtypemap[SInFnc], L"infnc");
+}
+/*
+pack은 폴더 경로
+ㄴmodl은 폴더 경로 + 파일 경로
+ㄴㄴclass 클래스
+ㄴㄴㄴmember - class에서 멤버 변수
+ㄴㄴㄴmethod 클래스의 멤버 함수/메서드
+ㄴㄴㄴㄴpara - func,method에서 인자로 쓰는 녀석
+ㄴㄴㄴㄴlocal - func,method에서 인자로 쓰는 녀석
+ㄴㄴfunc 전역 함수
+ㄴㄴㄴpara - func,method에서 인자로 쓰는 녀석
+ㄴㄴㄴlocal
+ㄴㄴㄴlabel - 블록
+ㄴㄴㄴ글로벌 변수는 모듈 안에서 쓰는 녀석이지만. 굳이 고려할 필요는 현재로썬 없어보임.
+
+심볼로 구분, 데이터 타입으로 구분
+미니멀리즘도 가능하지만 지금은 추상화된 구현을 우선으로.
+*/
+enum {
+	DTExpr_Cap,//arr[] list[int] dict[str,int]
+};
+class DataTypeInfo {
+public:
+	static MyHashTable<harpstr, harpclass*> DataTable; //Ref
+	static MyMemStack<DataTypeInfo, _4KB> DTArena;//128KB = 
+	//harpstr name;//typename : str, ...
+	
+	//DataTypeInfo* L;DataTable array<> list[list[int][3][3]] dict[3][dict[int]][list[int]]
+	//DataTypeInfo* R; int[3] list[list[int, 3],3] TypeName => DataTable TempClass
+	uint32_t R_idx;
+	uint32_t next_idx;
+	harpdata val;//사실 int/float 외에는 불가능한걸로. str는 type을 의미.
+};//string : ...
 struct SymbolData{
 	harpstr name;
-	SymbolData* Parent;
-	MyStack<SymbolData> childs;
-	SymbolTable* symtable;
-	uint8_t sym1_typ;
-	uint8_t sym2_typ;
+	SymbolData* parent;
+	//MyStack<SymbolData> childs;
+	SymbolTable* symtable; //strong ref
+	SymbolData* next; //weak ref
+
+	uint16_t no;//부모 클래스, 함수, 모듈, 패키지에서 몇번째 요소인가
+	SymType sym1_typ;
+	SymType2 sym2_typ;
+	DataTypeInfo* DT;//array[int, float]
+	//typetable
+private:
 	union {
+		harpfunc f; // maybe move
+		harpclass c; // maybe move
 		struct {
-			int para_len;
-			int frame_len;
-
-		}f;
+			//몇번째 멤버, 혹은 파라미터, 
+			uint8_t para_no;//.no class's member/method/... etc
+		}v;
 		struct {
-			int member_cnt;
-
-		}c;
+			//몇번째 멤버, 혹은 파라미터, 
+			uint8_t member_no;//.no class's member/method/... etc
+		}m;
 	};
-	void Init(harpstr*) {}
-	void Delete(harpstr*) {}
-};
-class SymbolTable : public std::umap<std::wstring, SymbolData> {
-//#define PARENT std::umap<std::wstring, SymbolData> 
 public:
-	SymbolData* Find(const wstring& str) {
-		auto pair = this->find(str); 
-		if (pair == this->end())return NULL;
-		return &pair->second;
+	void Init() {
+		memset(this, 0, sizeof(SymbolData));
+		//if (_name) {
+		//	name = _name;
+		//}
+		//else {
+		//	name = harpstr_new(L"", 0);
+		//}
+		//sym1_typ = (SymType)sym1;
+		//sym2_typ = (SymType2)sym2;
 	}
-#undef
-};///*
+	void Delete();
+	void SetName(const wchar_t* namebuf) {
+		if (namebuf == nullptr) {
+			
+		}
+		harpstr str = harpstr_new(namebuf, wcslen(namebuf));
+		this->name = str;
+	}
+	void SetType(const SymType typ) {
+		sym1_typ = typ;
+	}
+	void SetMember() {
+		sym1_typ = SymType::SMember;
+	}
+	void SetMethod() {
+		sym1_typ = SymType::SMethod;
+	}
+
+	void SetClass() {
+		sym1_typ = SymType::SClass;
+	}
+	void SetFunc() {
+		sym1_typ = SymType::SFunc;
+	}
+	void SetInFunc() {
+		sym1_typ = SymType::SInFunc;
+	}
+	void SetEnum() {
+		sym1_typ = SymType::SEnum;
+	}
+	
+	void SetLabel() {
+		sym1_typ = SymType::SLabel;
+	}
+	SymType GetSymType() {
+		return sym1_typ;
+	}
+	bool AddMember() {
+	}
+
+	void Dump(uint32_t id = 0u);
+	SymbolData* AddSym(SymbolData d);
+	bool IsStatic() {
+		switch (sym1_typ) {
+		case SFunc:
+		case SInFunc:
+		case SClass:
+		case SEnum:
+		case SPack:
+		case SModl:
+			return true;
+		}
+		return false;
+	}
+};
+
+class SymbolTable : public MyHashTable<std::wstring, SymbolData> {
+public:
+};
+SymbolData* SymbolData::AddSym(SymbolData d) {
+	wchar_t buf[64] = { 0, };
+	if (symtable == NULL) {
+		symtable = new SymbolTable();
+	}
+	if (d.name) {
+		d.name->ToWstring(buf);
+	}
+	symtable->emplace(buf, d);
+	return &(*symtable)[buf];
+}
+
+void SymbolData::Delete() {
+	if (name != NULL) {
+		free(name);
+		name = NULL;
+	}
+	if (symtable != NULL) {
+		for (auto s = symtable->begin(); s != symtable->end(); s++) {
+			s->second.Delete();
+		}
+		delete symtable;
+		symtable = NULL;
+	}
+}
+static void PrintTab(uint32_t id) {
+	for (uint32_t i = 0; i < id; i++) {
+		putchar(' ');
+		putchar(' ');
+	}
+}
+void SymbolData::Dump(uint32_t id) {
+	if (id == 0u)puts("===SymbolTable Dump===");
+	PrintTab(id); wprintf(L"[sym : %s]\n", g_symtypemap[sym1_typ]);
+	PrintTab(id); printf("name : "); name->Dump();
+	if (symtable == nullptr) return;
+	for (auto& S : *symtable) {
+		S.second.Dump(id < 8 ? (id + 1) : id);
+	}
+	puts("=== ===");
+}
+
+
+
+///*
 //main:Ptr
 //global[
 //	"a":[sym_typ:modl name:"a" parent: path:"c:\\~~~" parent child:]
@@ -318,7 +474,7 @@ struct PolishStack{
 #ifdef _DEBUG
 	MyStack<optype>opstack;
 #else
-	MyStack<uint8_t>stack;
+	MyStack<uint8_t>opstack;
 #endif
 	optype asmgiho[TOK_MAX]; // TOKEN -> OP
 	uint8_t oprank[OP_MAX]; // RANK OF OP
@@ -382,7 +538,7 @@ struct PolishStack{
 		}
 	}
 	optype pop() {
-		return opstack.pop();
+		return (optype)opstack.pop();
 	}
 	uint32_t isEmpty() {
 		return opstack.m_len == 0;
@@ -421,7 +577,7 @@ struct PolishStack{
 		optype opt = asmgiho[(uint8_t)tt];
 		optype c;
 		while (opstack.m_len != 0) {
-			c = opstack.top(); //* >= + -> 
+			c = (optype)opstack.top(); //* >= + -> 
 			if (!checkPop(c, opt))break;
 			bytecode.push(c, 0);
 			opstack.m_len--;
@@ -554,7 +710,7 @@ public:
 		if (t.typ != _Comma)throw NOCOMMA;
 		int oldpoint = skippoint;
 		skippoint = bytecode.m_len;
-		bytecode.push( (type == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
+		bytecode.push( (type == op_gstore ? op_gload : op_lload), exe.symtable[n].mem );
 		NEXT;
 		term();
 		bytecode.push( op_lt );
@@ -563,7 +719,7 @@ public:
 		loopcount++;
 		block();//블록 호출
 		bytecode.push( op_push, 1 );
-		bytecode.push( (type == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
+		bytecode.push( (type == op_gstore ? op_gload : op_lload), exe.symtable[n].mem );
 		bytecode.push( op_add );
 		bytecode.push( type, exe.symtable[n].mem );
 		bytecode.push(op_jmp, skippoint);

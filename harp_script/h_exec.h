@@ -40,6 +40,9 @@ class VMData {
 public:
 	MyStack<harpdata>lit;//리터럴
 	VMData() {
+		opstack.Init();
+		mem.Init();
+		lit.Init();
 		g_dll = 0;
 	}
 	template<typename T>
@@ -118,7 +121,7 @@ public:
 		symmap[0].emplace(s, (uint32_t)symtable.size());
 		symtable.emplace_back(SFnc, symtable[0].frame, 0, 0);
 		symtable[0].frame++;
-		return symtable.size() - 1;
+		return (int)symtable.size() - 1;
 	}
 	void pushinfunc(const wstring& s, uint32_t t) {
 		symmap[0].emplace(s, (uint32_t)symtable.size());
@@ -169,7 +172,7 @@ public:
 	int pushsym(const wstring& s, int nfunc) {
 		symmap[symtable[nfunc].mem].emplace(s, symtable.size());
 		symtable.emplace_back(SVar, symtable[nfunc].frame++, nfunc, 0);
-		return symtable.size() - 1;
+		return (int)symtable.size() - 1;
 	}
 	void callinfunc(infunctype infunc_type);
 	~EXECUTE() { if (g_dll)FreeLibrary(g_dll); enummap.clear(); }

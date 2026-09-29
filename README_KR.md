@@ -70,7 +70,7 @@ Harp Script의 목표는 이렇습니다.
 ## Examples & Syntax
 
 
-Please refer to the files inside the example folder for syntax references and examples.
+Please refer to [`/docs/`](./docs/README.md), or the files inside the `/ex/` folder for syntax references and examples.
 
 ### 기본적인 구문 설명
 

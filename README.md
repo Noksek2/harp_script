@@ -1,66 +1,87 @@
-# Harp Script
-
-## dev v0.2
-**Documentation In progress**
-
-## NOTICE
-This repository is mainly for introduction and explanation, and the code has not been uploaded. Codeberg Instead.
-https://codeberg.org/Noksek/harp_script
-
-## Info
-- [Korean/한국어판 README_KR](README_KR.md)
-
 ## Introduction
 
-Harp Script is a simple, experimental scripting language developed around 2018.
+Harp Script is a simple, dynamically-typed scripting language first created in 2018.
 
 <img width="200" height="200" alt="Image" src="https://github.com/user-attachments/assets/6a9b426f-38df-4145-a1be-634d9ce833e7" />
 
-The goal of Harp Script is
-- Simple grammar, Flexible syntax.
-- A not-so-strict parser.
-- Fast VM, Memory-friendly development (no Garbage Collection).
-- Light and fast VM.
+The goals of Harp Script are as follows:
+- Simple syntax, flexible syntax usage
+- Uncomplicated parser
+- Lightweight and extensible VM
+- Mark sweep, no global memory GC
 
-## Philosophy?
-- Easy to implement, use it for a long time.
-- Limited functions require thinking ability.
-- Basic functions, no complicated functions.
-- Code style debate useless
-- Typing errors are the developer’s responsibility
+## Philosophy
+- Implement easily, use for a long time.
+- Limited features require critical thinking.
+- Pursue basic and uncomplicated features
+- Code style is up to the developer
+- Typing errors are the developer's responsibility
 
+## v0.2 Goals
+- Redesign the entire VM and parser from v0.1
+- Modify syntax and some features. Abandon some syntax compatibility with v0.1
+- Move beyond Toy Script
 
-## Latest Version (v0.1.1)
-- Modify Program Structure (VM, Compiler, Types... else)
-- Modify grammar
-- Escape from Toy Language
-
-## Features
+## Features (v0.2)
 
 - Limited functionality
 
-- Simple math operations
+- Simple mathematical operations
 
-- Console I/O
+- Console I/O support, minimal built-in function support
 
-- Some built-in functions related to dxlib
+- Basic data types provided: integers, floats, characters, booleans, None, and strings
 
+- Dynamic array List and hash table Dictionary objects provided
 
+- As of v0.2, object declaration is not possible. Classes are planned for v0.3 and later
 
-## Codeberg, Please...
-- **Hosted on Codeberg** : To prevent unauthorized AI data harvesting, please contribute or fork via Codeberg. If using GitHub, keep your forks private.
+- Function (Func) declaration and Enum constant support
 
+- DLL loading functionality for C language interoperability
+
+- Basic GUI programming support (libraries like DxLib provided by default)
+
+- Simple language management system inspired by Go
+
+## Other Differences from v0.1
+
+- Starts from the main function
+- Added basic data types (`list`, `dict`, `bool`, `none`)
+- Runtime errors trigger panic for safety (`error`) - v0.2 terminates immediately without exception handling
+- Changed some built-in function specifications and syntax specs
+- And more
 
 ## Examples & Syntax
 
-Please refer to the files inside the example folder for syntax references and examples.
+Please refer to [`/docs/`](./docs/README.md), or the files inside the [`/ex/`](./ex/) folder for syntax references and examples.
 
-- Flexible, Free style syntax. But be careful to use it. ()
+### Basic Syntax Explanation
+
+0. Flexible and free syntax.
+- Of course, freedom comes with responsibility.
+
+Flexible syntax itself is much easier to implement in interpreters/compilers and provides better performance.
+
 ```
 ~same grammar~
 n=100 n1=100.1
 n
 =100
+n1 =
+100.1
+// Line Comment
+
+~ same 
+grammar 
+~
+print n, n1
+print n,
+n1
+
+
+n=100 n1=100.1
+n =100
 n1 =
 100.1
 
@@ -72,31 +93,101 @@ n1
 
 ```
 
+1. Block start is `do`, end is `end` or `;`. However, block start can be omitted.
+- Since this is not Python, tabs are optional.
+```
+// v0.2 = ruby style
+if true do
+	print('true haha')
+end
 
+// also ok 
+if true
+	print('true haha')
+end
+
+// no ok. it's not python
+if true
+	print('true haha')
+	
+
+// v0.1 style. ok. 
+// but don't use `:` for starting block
+if true do
+	print(100)
+;
+if true
+	print(100)
+;
+if true do print(100) ;
+if true print(100) ;
+
+	if true
+print(100)
+					;
+// i dont care tab : ) 
+```
+
+
+2. For other details, see the examples [`/ex/`](./ex/)
+
+```
+// DxLib Example
+use dxlib as *
+func main
+	Dxlib_init()
+	x=250
+	y=200
+	img = Loadgraph('./image/yuka.png')
+	t=0
+	while Msgloop() and !Keypress(vk_esc)
+		loop i,5
+			Drawstr('와 정말 신기한걸?',
+				i*2,
+				i*2,
+				rgb(0,i*50,i*50))
+		;
+		loop i,20
+			Rotagraph(img,
+				i*10+cos(t)*200+250,
+				sin(t)*i*10+200,
+				sin(t/2)*360,
+				(sin(i*10)+sin(t))/3)
+		;
+		t+=1
+	;
+	Dxlib_end()
+;
+```
+Code
 
 ## Implementation Features
 
-* ** Direct-to-Bytecode (No AST):** Does not build an explicit Abstract Syntax Tree (AST). A recursive descent parser with an operator-precedence stack generates bytecode directly during parsing. (See `express.cpp`)
-* **Simple FFI (Foreign Function Interface):** Uses WinAPI (`LoadLibrary`/`GetProcAddress`) to dynamically load `.dll` files (e.g., `DxLib.dll`). These are wrapped as built-in functions (infunc) that can be called directly from the VM. (See `memory.h`, `infunc.cpp`)
-* **Stack-Based VM:** A simple stack-based virtual machine, written in C++, interprets and executes the bytecode. (See `execute.cpp`)
-* 
+* **Direct-to-Bytecode (No AST):** v0.2 does not use AST for fast parsing and simple compiler implementation. Uses recursive descent parser and generates bytecode immediately on the stack. (See `h_expr.cpp`)
+* **Simple FFI (Foreign Function Interface):** Uses WinAPI functionality (`LoadLibrary`/`GetProcAddress`) to load `.dll` files (e.g., `DxLib.dll`). Built-in features are immediately usable without additional parsing or file checking delays. (See `h_mem.h`, `h_infunc.cpp`)
+* **Stack-Based VM:** Simple stack-based virtual machine written in C-level C++, interprets and executes bytecode directly. (See `h_exec.cpp`)
+
 ## Usage
 
-1. Write your code in a.harp.
+1. Add the path of harp.exe to PATH.
 
-2. Run harp.exe.
+2. Create a source file with a .harp extension and write your code.
 
-3. Bytecode will be generated as the output file.
+3. Open a console and type `harp sourcefile`.
+   - 3-1. If the source file does not have a .harp extension, use a specific flag (`-r`) and include the extension.
+   
+   `harp -r a.txt`
+   
+   - 3-2. If both a.txt and a.harp exist in the same directory, only a.harp will run.
+   
+   - 3-3. If you type `harp a.harp`, it will look for `a.harp.harp`, so just type `harp a`.
+   
+   - 3-4. If you type `harp a.txt` without the `-r` flag, it will load `a.txt.harp`.
 
-4. And you can see the result. (Console or Dxlib program)
+4. Available flags can be checked with `-h` or `--help`.
+
+5. Check your results. Happy programming :)
 
 ## LICENSE
-Until `v0.1.0` : `Apache License 2.0` <br>
-After `v0.1.1` : `HarpScript License` (will explain it later.)
-
-
-## Version
-
-- v0.1 Dev : ~ December 2018
-- v0.1 Published : December 2018
-- v0.2 Dev : April 2026, August 2026~
+- Until `v0.1.0` : `Apache License 2.0` -> Private
+- After `v0.2.0` : `HarpScript License` (will explain it later.)

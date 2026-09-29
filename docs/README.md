@@ -1,4 +1,7 @@
 # Harp Script Docs 한글판
+
+`HARP SCRIPT is the programming language`
+
 현재 한글만 지원
 
 ```
@@ -12,7 +15,6 @@
 /docs/dev/ 개발 일지, 언어 개발 관련 내용 모음 (Github 공개 안함)
 ```
 
-`HARP SCRIPT is the programming language`
 
 # Grammar/Syntax
 ## macro
@@ -67,6 +69,8 @@ a // a = none if a is not declared
   Block Comment
 	Yeah : ))
 ~
+```
+
 ### Line Comment
 ```
 //Line

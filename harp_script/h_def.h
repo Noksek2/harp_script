@@ -29,35 +29,59 @@ struct RandomDevice {
 
 enum ttype : uint8_t{
 	None,
-	_Int,
-	_Num,
-	_Str,
-	_Ident,
+	_Int,//1 2 3 int literal
+	_Num,//10.0 30.0 40. literal
+	_Str, //"string"
+	_Char, //'c'
+	_Ident, // ident
 
+	//var i = 10
+	//var i int = 300
+	//var i, j, c
 	_var,
+	//print 1,2,3,4
+	//print(1, 2, 3, 4)
 	_print,
-	_out,
+	//out = put = print - '\n'
+	_put, _out=_put,
+	//if true
 	_if,
+	//elif true
 	_elif,
+	//else
 	_else,
-	_for,//for i inc 0, 1000, 3 
+	// for i=0, i<10, i+=1:
+	// for a in arr:
+	_for,
+	//while i<10
 	_while,
+	// loop
+	// loop i
+	// loop i, 10
+	// loop i, 0..10: 
+	// loop i, 0...10 inc 1:
+	// loop i, 0..10 dec 1:
 	_loop,
+	//break
 	_break,
-	_skip,
-	//_jump,
-	_switch,
-	_case,
-	_func,
-	_return,//
-	_use,//use dxlib : dx
-	_enum,
-	_module,
+	//redo, skip
+	_redo, _skip=_redo,
+
+	_match,//match
+	_case,//case
+	_func,//func
+	_return,//return
+	_use,//use dxlib as dx
+	_as, //as
+	_enum,// enum: enum BB:
+	//_module,
 	_include,
-	_inc,
-	_dec,
+	_import, //import = include, but little bit different
+	_inc, //use for loop keyword, inc
+	_dec, //use for loop keyword, dec
 
 	k_load_dll,//load_dll 
+	k_char,//char()
 	k_int,//int()
 	k_float,//float()
 	k_str,//str()
@@ -87,9 +111,9 @@ enum ttype : uint8_t{
 	_And,	//&
 	_Or,	//|
 	_Not,	//!
-	_Zusuk,	//~
+	_Comment_B,	//~
 	_Equal,	//=
-	_Hex,	//#
+	_Sharp,	//#
 
 	/*_Or1,	// or
 	_And1,	// and
@@ -110,7 +134,7 @@ enum ttype : uint8_t{
 	_Bigis,//>=
 	_default,//=>
 	_Atsign,//@
-	_Zusuk2,//	//
+	_Comment_L,//	//
 	_Error,
 
 	TOK_MAX=128,
@@ -173,7 +197,6 @@ enum symtype2 : uint8_t{
 	S2None,
 	//Sym_Class,
 	SPara,
-	SLocal,
 
 	//SFncMethod
 	//SFnc

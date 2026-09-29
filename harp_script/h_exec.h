@@ -5,6 +5,48 @@
 
 // dats = stack[len]
 
+enum RunFlag {
+	RunFlag_Dis,//printbytecode
+	RunFlag_Debug,
+	RunFlag_Eng,
+	MAX_FLAG = 64,
+};
+
+struct RunFlagData {
+private:
+	uint8_t runflags[MAX_FLAG / 8];
+public:
+	void Init() {
+		memset(runflags, 0, (MAX_FLAG));
+	}
+	inline void Set(RunFlag flag) {
+		int idx = (flag) / 8;
+		int bitidx = (flag % 8);
+		runflags[idx] |= (1 << bitidx);
+	}
+	inline void Reset(RunFlag flag) {
+		int idx = (flag) / 8;
+		int bitidx = (flag % 8);
+		runflags[idx] &= ~(uint8_t)(1 << bitidx);
+	}
+
+	inline bool Check(RunFlag flag) {
+		int idx = (flag) / 8;
+		int bitidx = (flag % 8);
+		return runflags[idx] & (1 << bitidx);
+	}
+};
+
+class HarpRunner {
+public:
+	RunFlagData runflag;
+	void Init() {
+		runflag.Init();
+	}
+	void Delete() {
+		runflag.Init();
+	}
+};
 
 struct codeset {
 	uint32_t op : 8;
@@ -21,17 +63,6 @@ public:
 };
 
 extern Bytecode bytecode;
-struct symbol {//심볼 테이블 구조체
-	uint8_t t;//변수 타입인 듯. (var, func )
-	uint32_t mem;//index of vm memory where "var" uses
-	uint32_t para;//count of paramater 
-	uint32_t func;//함수의 번호 (infunc's enum no)
-	uint32_t frame;// frame size of function 
-	symbol() { t = SVar; mem = 0u; func = 0; frame = 0; para = 0; }
-	symbol(uint8_t _t, uint32_t _mem, uint32_t _func, uint32_t _frame)
-		:t(_t), mem(_mem), func(_func), frame(_frame), para(0) {
-	}
-};
 
 class VMData {
 	friend class EXECUTE;
@@ -63,13 +94,7 @@ public:
 	}
 	inline void lit_push(const wchar_t* str, uint32_t len) {
 		harpdata h;
-		if (len < 6u) {
-			//memcpy(h.s8 + 2, str, len);
-			//h.byte = ENCODE_INSTR(h);
-		}
-		else {
-			//h.f64 = val;
-		}
+		h.SetStr(str, len);
 		lit.push(h);
 	}
 
@@ -77,7 +102,7 @@ public:
 	}
 	//아으 토나온다
 };
-class EXECUTE :public VMData {
+class HarpRuntime :public VMData {
 protected:
 	//VMData* vmdata;
 	//MyStack<int>emptyarray;
@@ -99,7 +124,7 @@ protected:
 	friend class COMPILE;
 public:
 	std::vector<symbol>symtable;//심볼 테이블.. 인데 왜 2개나 있지
-	EXECUTE()
+	HarpRuntime()
 		:line(0U),
 		base(0U),
 		opr(0U),
@@ -113,6 +138,7 @@ public:
 		symmap.emplace_back();
 		symtable.emplace_back(TFnc, 0, 0, 1);
 	}
+	~HarpRuntime() { if (g_dll)FreeLibrary(g_dll); enummap.clear(); }
 	void run();
 	bool usefunc(const wstring& s);
 
@@ -175,6 +201,6 @@ public:
 		return (int)symtable.size() - 1;
 	}
 	void callinfunc(infunctype infunc_type);
-	~EXECUTE() { if (g_dll)FreeLibrary(g_dll); enummap.clear(); }
+	
 };
 extern EXECUTE exe;

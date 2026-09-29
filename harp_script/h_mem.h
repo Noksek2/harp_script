@@ -5,8 +5,6 @@
 
 
 
-
-
 struct PoolBlock {//64KB
 	uint8_t sizelist[8] = { 3, }; //[8]
 	uint32_t blocksize;

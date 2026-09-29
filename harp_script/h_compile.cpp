@@ -88,7 +88,7 @@ int COMPILE::identdef(int i = 0) {//식별자 호출 또는 대입 검사.
 	else typ = op_lstore;
 	NEXT;
 	if (t.typ == _Array) {
-		bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
+		bytecode.push( (typ == op_gstore ? op_gload : op_lload), exe.symtable[n].mem );
 		while (t.typ == _Array) {
 			NEXT;
 			term();
@@ -103,7 +103,7 @@ int COMPILE::identdef(int i = 0) {//식별자 호출 또는 대입 검사.
 		}
 	}
 	else if (t.typ == _Brack) {
-		bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
+		bytecode.push( (typ == op_gstore ? op_gload : op_lload), exe.symtable[n].mem );
 		do{
 			NEXT;
 			if (t.typ == _Brackend) {
@@ -127,42 +127,42 @@ int COMPILE::identdef(int i = 0) {//식별자 호출 또는 대입 검사.
 	else {
 		switch (t.typ) {
 		case _Add:
-			bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
+			bytecode.push( (typ == op_gstore ? op_gload : op_lload), exe.symtable[n].mem );
 			NEXT;
 			term();
 			bytecode.push( op_add );
 			bytecode.push( typ, exe.symtable[n].mem );
 			break;
 		case _Sub:
-			bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
+			bytecode.push( (typ == op_gstore ? op_gload : op_lload), exe.symtable[n].mem );
 			NEXT;
 			term();
 			bytecode.push( op_sub );
 			bytecode.push( typ, exe.symtable[n].mem );
 			break;
 		case _Mul:
-			bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
+			bytecode.push( (typ == op_gstore ? op_gload : op_lload), exe.symtable[n].mem );
 			NEXT;
 			term();
 			bytecode.push( op_mul );
 			bytecode.push( typ, exe.symtable[n].mem );
 			break;
 		case _Div:
-			bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
+			bytecode.push( (typ == op_gstore ? op_gload : op_lload), exe.symtable[n].mem );
 			NEXT;
 			term();
 			bytecode.push( op_div );
 			bytecode.push( typ, exe.symtable[n].mem );
 			break;
 		case _Mod2:
-			bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
+			bytecode.push( (typ == op_gstore ? op_gload : op_lload), exe.symtable[n].mem );
 			NEXT;
 			term();
 			bytecode.push( op_mod );
 			bytecode.push( typ, exe.symtable[n].mem );
 			break;
 		case _Pow2:
-			bytecode.push( (typ == op_gstore ? op_gvar : op_lvar), exe.symtable[n].mem );
+			bytecode.push( (typ == op_gstore ? op_gload : op_lload), exe.symtable[n].mem );
 			NEXT;
 			term();
 			bytecode.push( op_pow );

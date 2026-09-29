@@ -7,13 +7,6 @@ lol
 #include "h_compile.h"
 #include <time.h>
 
-enum RunFlag {
-	RunFlag_Dis,//printbytecode
-	RunFlag_Debug,
-	RunFlag_Eng,
-	MAX_FLAG = 128,
-};
-
 RandomDevice* g_randdev;
 Bytecode bytecode;//아마도 바이트코드
 bool g_runflags[MAX_FLAG];

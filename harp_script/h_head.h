@@ -286,7 +286,7 @@ struct KeyComposer {
 #include <cwchar>
 template<>
 static inline uint32_t KeyComposer<std::wstring>::GetHash(const std::wstring& name) {
-	uint32_t len = wcslen(name.c_str());
+	uint32_t len = (uint32_t) wcslen(name.c_str());
 	uint32_t hash = 0u;
 	for (uint32_t idx = 0; idx < len; idx++)
 	{

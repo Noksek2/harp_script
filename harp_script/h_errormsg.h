@@ -26,7 +26,9 @@ enum errortype {
 	BLOCKOPEN,
 	BADENUM,
 	TOOMANY,
-	
+	BADSTR,
+	BADFLOAT,
+	BADINT,
 };
 #undef ERROR
 class ERRORMSG {
@@ -82,6 +84,10 @@ public:
 		case NOBLOCK:buf += L"블록이 필요합니다.";
 		case BLOCKOPEN:buf += L"블록을 닫아주세요.";
 		case BADENUM:buf += L"열거형 상수로는 숫자, 문자열만 사용 가능합니다.";
+
+		BADSTR, 올바르지 않은 문자열 리터럴입니다.
+		BADFLOAT, 올바르지 않은 실수형 리터럴입니다.
+		BADINT, 올바르지 않은 정수형 리터럴입니다.
 		*/
 
 	}

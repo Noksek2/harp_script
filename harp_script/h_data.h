@@ -82,7 +82,7 @@ enum optype :uint8_t {
 
 enum harpobjtype {
     objt_null,
-    objt_str,
+    objt_strbuf,
     objt_list,
     objt_dict,
 };
@@ -99,6 +99,7 @@ typedef struct harpobj harpobj;
 typedef struct harpstr_d harpstr_d;
 typedef harpstr_d* harpstr;
 typedef harplist_d* harplist;
+typedef harpdict_d* harpdict;
 static harpstr harpstr_copy(harpstr str);
 
 struct harpstr_d {
@@ -113,17 +114,19 @@ struct harpstr_d {
         return memcmp(s1->ptr, this->ptr, s1->len * sizeof(wchar)) == 0;
     }
     harpstr Copy() { return harpstr_copy(this); }
+    inline void IncRC() { rc++; }
+    inline void DecRC() { if (rc)rc--; if (rc == 0) { free(this); } }
     void Print() const {
         for (uint32_t i = 0; i < len; i++) {
             putwchar(ptr[i]);
         }
     }
     void Dump() {
-        wprintf(L"[harpstr] (len=%u hash=%X val=", len, hash);
+        wprintf(L"[harpstr] (len=%u hash=%X rc=%u val=", len, hash, rc);
         Print();
         printf(")\n");
     }
-    void ToWstring(wchar_t* buf) {
+    void ToWstring(wchar* buf) {
         memcpy(buf, ptr, sizeof((len) * sizeof(wchar)));
         buf[len] = 0;
     }
@@ -140,17 +143,24 @@ static void harpstr_sethash(harpstr str) {
     if (hash < 2u) hash = 2u;
     str->hash = hash;
 }
-static harpstr harpstr_new(const void* ptr, const wchar_t* buf, const uint32_t len) {
+
+static harpstr harpstr_new(const void* ptr, const wchar* buf, const uint32_t len) {
+    if (buf == nullptr) return NULL;
+    if (ptr == nullptr) return NULL;
     harpstr str = (harpstr)ptr;
     str->len = len;
+    str->rc = 1u;
     memcpy(str->ptr, buf, len * sizeof(wchar));
     harpstr_sethash(str);
     return str;
 }
-static harpstr harpstr_new(const wchar_t* buf, const uint32_t len) {
+static harpstr harpstr_new(const wchar* buf, const uint32_t len) {
     //uint32_t str_sz = harp_align();
+    if (buf == nullptr) return NULL;
     harpstr str = (harpstr)malloc(sizeof(harpstr_d) + len * sizeof(wchar));
+    if (str == NULL) return NULL;
     str->len = len;
+    str->rc = 1u;
     memcpy(str->ptr, buf, len * sizeof(wchar));
     harpstr_sethash(str);
     return str;
@@ -160,10 +170,131 @@ static harpstr harpstr_copy(harpstr str) {
     harpstr newstr =(harpstr)calloc(1, memsz);
     if (newstr == NULL) {
         Harp_assert(newstr != NULL, "harpstr_copy failed : NULL RETURNED");
+        return NULL;
     }
     memcpy(newstr, str, memsz);
     return newstr;
 }
+static harpstr harpstr_add(const wchar* buf, const uint32_t len, const wchar* buf2, const uint32_t len2) {
+    if (buf == nullptr) return NULL;
+    if (buf2 == nullptr) return NULL;
+
+    void* ptr = calloc(sizeof(harpstr_d) + (len + len2) * sizeof(wchar), 1);
+    harpstr str = (harpstr)ptr;
+    if (str == NULL) return NULL;
+    str->len = (len + len2);
+    str->rc = 1u;
+    memcpy(str->ptr, buf, len * sizeof(wchar));
+    memcpy(str->ptr + len, buf2, (len2) * sizeof(wchar));
+    harpstr_sethash(str);
+    return str;
+}
+class HarpStr {
+
+public:
+    harpstr p;
+    HarpStr() { p = NULL; }
+    HarpStr(const wchar* buf, const uint32_t len) {
+        puts("buf Init");
+        Init(buf, len);
+    }
+    HarpStr(const wchar* buf) {
+        if (buf == nullptr) {
+            p = NULL;
+            return; 
+        }
+        Init(buf, (uint32_t)wcslen(buf));
+    }
+    HarpStr(const wstring& buf) {
+        puts("wstring Init");
+        Init(buf.c_str(), (uint32_t)buf.size());
+    }
+    HarpStr(const harpstr& hs) {
+        puts("harpstr ptr");
+        Init(hs);
+    }
+    HarpStr(harpstr&& hs) {
+        puts("harpstr ptr raw");
+        p = hs;
+    }
+    HarpStr(const HarpStr& hs) {
+        puts("HarpStr Init");
+        Init(hs);
+    }
+    ~HarpStr() {
+        Release();
+    }
+    HarpStr& operator=(const HarpStr& R) {
+        Release();
+        Init(R);
+        return *this;
+    }
+    HarpStr& operator=(const harpstr& R) {
+        Release();
+        Init(R);
+        return *this;
+    }
+    HarpStr& operator=(harpstr&& R) {
+        Release();
+        p = R;
+        return *this;
+    }
+    //HarpStr& operator=(const wchar* buf) {
+    //    Release();
+    //    if(buf != nullptr) Init(buf, (uint32_t)wcslen(buf));
+    //    return *this;
+    //}
+    HarpStr& operator+=(const wchar* buf) {
+        if (buf != nullptr && p != nullptr) {
+            //void* ptr = calloc(wcslen(buf) + p->len, sizeof(wchar));
+            harpstr newhs = harpstr_add(p->ptr, p->len, buf, (uint32_t)wcslen(buf));
+            Release();
+            p = newhs;
+        }
+        return *this;
+    }
+    bool operator==(const HarpStr& R) const {
+        if (p == R.p) return true;
+        if (p->Compare(R.p)) return true;
+        return false;
+    }
+    void Print() { if (p != nullptr) { p->Print(); } }
+    void Dump() { if (p != nullptr) { p->Dump(); } }
+private:
+    void Init(const harpstr& hs) {
+        p = hs;
+        p->IncRC();
+    }
+    void Init(const wchar* buf, const uint32_t len) {
+        p = harpstr_new(buf, len);
+    }
+    void Init(const wstring& buf) {
+        p = harpstr_new(buf.c_str(), (uint32_t)buf.size());
+    }
+    void Init(const HarpStr& hs) {
+        p = hs.p;
+        p->IncRC();
+    }
+    //void Delete() {
+    //    if (p) {
+    //        free(p);
+    //        p = nullptr;
+    //    }
+    //}
+    void Release() {
+        if (p != nullptr) { p->DecRC(); p = nullptr; }
+    }
+};
+
+namespace std {
+    template<>
+    struct hash<HarpStr> {
+        size_t operator()(const HarpStr& hs) const noexcept {
+            return (size_t)hs.p->hash;
+        }
+    };
+}
+
 
 #if __cplusplus
 struct harpobj {
@@ -173,6 +304,7 @@ struct harpobj {
     union {
         harpstr s;
         harplist li;
+        harpdict dc;
         void* p;
     }u;
     uint32_t next;
@@ -216,9 +348,63 @@ enum {
     method_opneq_idx,
 };
 
+typedef const harpdata(*harpfunc_p) (const harpdata*, const uint32_t);
+
+
+
+struct harpdata {
+    union {
+        uintptr_t byte;
+        int64_t i64;
+        double f64;
+        harpstr str;
+        char s8[8];
+        void* v;
+        struct harpobj* obj;
+    };
+    
+    inline void SetInt(int64_t i);
+    inline void SetFloat(double d);
+    inline void SetStr(const wchar* buf, const uint32_t len);
+    inline void SetStr(harpstr s);
+    inline void SetObj(harpobj* obj);
+    inline void SetBool(bool b);
+    inline void SetErr(rterrtype);
+
+
+    inline const int64_t GetInt()const;
+    inline const harpstr GetStr()const;
+    const bool isTrue() const;
+    inline void IncRC();
+    inline void DecRC();
+    void Print() const;
+    void DebugPrint() const ;
+    inline const uint32_t GetType() const;
+};
+
+struct harptype {
+    uint8_t TagType;
+    uint8_t _;
+    uint16_t ObjType;//obj 
+};
+
+struct harpfunc {
+    harpfunc_p fn;
+    harpstr name;
+    uint8_t frame_len;
+    uint8_t para_len;
+    uint8_t types[8];//0 1 2 3 4 5 6 7 8 p=parent() c=child() s:parent
+    harptype types_etc[];
+};
+struct harpvtableinfo {
+    //그전에는 이렇게?
+    MyHashTable<HarpStr, harpdata> members;
+    MyHashTable<HarpStr, harpdata> methods;
+
+};
 struct harpvtable {
-    
-    
+
+
     //런타임 단계
     MyStack<harpfunc_p, 256u> methods; //연산자, 생성자 등 오버라이드는 맨앞에서 자동 생성.
     MyStack<harpdata, 256u> members; //멤버는 고정되어 있음.
@@ -240,55 +426,6 @@ struct harpvtable {
     //harpfunc_p fn_op_or;
 };
 
-
-
-struct harpdata {
-    union {
-        uintptr_t byte;
-        int64_t i64;
-        double f64;
-        char s8[8];
-        void* v;
-        struct harpobj* obj;
-    };
-    
-    inline void SetInt(int64_t i);
-    inline void SetFloat(double d);
-    inline void SetObj(harpobj* obj);
-    inline void SetBool(bool b);
-    inline void SetErr(rterrtype);
-
-
-    inline const int64_t GetInt()const;
-    inline const harpstr GetStr()const;
-    const bool isTrue() const;
-    inline void IncRC();
-    inline void DecRC();
-    void Print() const;
-    void DebugPrint() const ;
-    inline const uint32_t GetType() const;
-};
-
-struct harptype {
-    uint8_t TagType;
-    uint8_t _;
-    uint16_t ObjType;//obj 
-};
-typedef const harpdata(*harpfunc_p) (const harpdata*, const uint32_t);
-struct harpfunc {
-    harpfunc_p fn;
-    harpstr name;
-    uint8_t frame_len;
-    uint8_t para_len;
-    uint8_t types[8];//0 1 2 3 4 5 6 7 8 p=parent() c=child() s:parent
-    harptype types_etc[];
-};
-struct harpvtableinfo {
-    //그전에는 이렇게?
-    MyHashTable<harpstr, harpdata> members;
-    MyHashTable<harpstr, harpdata> methods;
-
-};
 struct harpclass {
     //harpfunc_p fn;
     //harpfunc_p fn_op_add;
@@ -342,10 +479,8 @@ constexpr uint64_t CHECK_INF(const harpdata V) {
 }
 constexpr bool IF_INT(const harpdata V) { return ((CHECK_TAG(V)) == TAG_INT); }
 constexpr bool IF_OBJ(const harpdata V) { return ((CHECK_TAG(V)) == TAG_OBJ); }
-constexpr bool IF_UNQ(const harpdata V) {
-    return ((CHECK_TAG(V)) == TAG_UNQ);
-}
-
+constexpr bool IF_STR(const harpdata V) { return ((CHECK_TAG(V)) == TAG_STR); }
+constexpr bool IF_UNQ(const harpdata V) { return ((CHECK_TAG(V)) == TAG_UNQ); }
 constexpr bool IF_FLOAT(const harpdata V) {
     return ((CHECK_EXPONENT(V) != INF_MARK) || CHECK_INF(V));
 }
@@ -369,13 +504,10 @@ constexpr uint64_t ENCODE_INT32(uint32_t i) {
 }
 constexpr uint64_t ENCODE_INT(uint64_t i) { return  (TAG_INT | ((uint64_t)(i)&BIT_48)); }
 constexpr uint64_t ENCODE_OBJ(void* p) { return  (TAG_OBJ | ((uint64_t)(p)&BIT_48)); }
-//constexpr uint64_t ENCODE_STR(const harpdata d) { return (TAG_STR | (d.byte)); }
+constexpr uint64_t ENCODE_STR(const harpstr s) { return (TAG_STR | ((uint64_t)s)); }
 constexpr uint64_t ENCODE_ERR(rterrtype i) { return  (TAG_ERR | ((uint32_t)(i))); }
 
 
-constexpr uint32_t DECODE_INT32(const harpdata V) {
-    return ((int32_t)((V).byte & 0xFFFFFFFF));
-}
 
 #define DECODE_VAL(V) ((V).byte&BIT_48)
 #define DECODE_INT(V) ((int64_t)((V).byte&BIT_48))
@@ -385,16 +517,27 @@ constexpr uint32_t DECODE_INT32(const harpdata V) {
     (((int64_t)((V).byte&BIT_48))|0xFFFF000000000000)\
     :((int64_t)((V).byte&BIT_48))
 #define DECODE_FLOAT(V) ((V).f64)
+constexpr uint32_t DECODE_INT32(const harpdata V) {
+    return ((int32_t)((V).byte & 0xFFFFFFFF));
+}
+constexpr harpstr DECODE_STR(const harpdata V) { return 	((harpstr)(void*)((V.byte) & BIT_48)); }
 constexpr harpobj* DECODE_OBJ(const harpdata V) { return 	((harpobj*)(void*)((V.byte) & BIT_48)); }
 
 #define INT_CALC_NEW(N1, S, N2) ENCODE_INT((DECODE_INT(N1)) S (DECODE_INT(N2)))
 //#define INT_CALC_IN(N1, S, N2) DECODE_INT(N1) S DECODE_INT(N2)
 
-void harpdata::SetInt(int64_t i)  {
+inline void harpdata::SetInt(int64_t i)  {
     byte = ENCODE_INT(i);
 }
 inline void harpdata::SetFloat(double d) {
     f64 = d;
+}
+
+inline void harpdata::SetStr(const wchar* buf, const uint32_t len) {
+    byte = ENCODE_STR(harpstr_new(buf, len));
+}
+inline void harpdata::SetStr(harpstr s) {
+    byte = ENCODE_STR(s);
 }
 inline void harpdata::SetObj(harpobj* obj) {
     byte = ENCODE_OBJ(obj);
@@ -410,12 +553,9 @@ inline const int64_t harpdata::GetInt()const {
     return DEC_NORM_INT(*this);
 }
 inline const harpstr harpdata::GetStr() const {
-    return DECODE_OBJ(*this)->u.s;
+    return DECODE_STR(*this);
 }
 inline const bool harpdata::isTrue() const {
-    //if (byte == HARP_TRUE) {
-    //    return true;
-    //}
     if (byte == HARP_FALSE) {
         return false;
     }
@@ -426,9 +566,11 @@ inline const bool harpdata::isTrue() const {
 }
 inline void harpdata::IncRC() {
     if (IF_OBJ(*this)) DECODE_OBJ(*this)->IncRC();
+    else if (IF_STR(*this)) DECODE_STR(*this)->IncRC();
 }
 inline void harpdata::DecRC() {
     if (IF_OBJ(*this)) DECODE_OBJ(*this)->DecRC();
+    else if (IF_STR(*this)) DECODE_STR(*this)->DecRC();
 }
 
 inline const uint32_t harpdata::GetType() const {
@@ -494,6 +636,12 @@ struct harplist_d {
     uint32_t len;
     uint32_t capa;
     harpdata arr[];
+    void Delete() {
+        for (uint32_t i = 0u; i < len; i++) {
+            arr[i].DecRC();
+        }
+    }
+
     void Print() const {
         putchar('[');
         for (uint32_t i = 0; i < len; i++) {
@@ -513,21 +661,20 @@ struct harplist_d {
         }
         putchar(']');
     }
-    void Delete() {
-        for (uint32_t i = 0u; i < len; i++) {
-            arr[i].DecRC();
-        }
-    }
+   
 };
 
 
 inline void harpobj::Delete() {
     switch (objtype) {
-    case objt_str:
-        free(u.p);
+    case objt_strbuf:
+        //free(u.p);
         break;
     case objt_list:
         u.li->Delete();
+        break;
+    case objt_dict:
+        //u.dc->Delete();
         break;
     }
     u.p = NULL;

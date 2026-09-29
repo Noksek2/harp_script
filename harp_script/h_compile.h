@@ -49,9 +49,10 @@ pack은 폴더 경로
 enum {
 	DTExpr_Cap,//arr[] list[int] dict[str,int]
 };
+
 class DataTypeInfo {
 public:
-	static MyHashTable<harpstr, harpclass*> DataTable; //Ref
+	static MyHashTable<HarpStr, harpclass*> DataTable; //Ref
 	static MyMemStack<DataTypeInfo, _4KB> DTArena;//128KB = 
 	//harpstr name;//typename : str, ...
 	
@@ -270,7 +271,7 @@ public:
 		typestr.emplace(L"if", _if);
 		typestr.emplace(L"elif", _elif);
 		typestr.emplace(L"else", _else);
-		typestr.emplace(L"switch", _switch);
+		typestr.emplace(L"match", _match);
 		typestr.emplace(L"case", _case);
 
 		/*반복문*/
@@ -289,6 +290,7 @@ public:
 
 		/*함수 리턴*/
 		typestr.emplace(L"return", _return);
+		typestr.emplace(L"ret", _return);
 
 		/*내장 모듈 사용. 이름은 거창하네 신발*/
 		typestr.emplace(L"use", _use);
@@ -321,8 +323,8 @@ public:
 		typestr.emplace(L">", _Big);
 		typestr.emplace(L"|", _Or);
 		typestr.emplace(L"&", _And);
-		typestr.emplace(L"#", _Hex);
-		typestr.emplace(L"~", _Zusuk);
+		typestr.emplace(L"#", _Sharp);
+		typestr.emplace(L"~", _Comment_B);
 		typestr.emplace(L"!", _Not);
 		typestr.emplace(L"=", _Equal);
 
@@ -352,36 +354,78 @@ public:
 }; extern KEY key;//이걸 전역변수로 선언해 버리는 클라스
 
 /*토큰 구조체*/
-struct token {
-	wstring s;
+struct harptoken {
+public:
+	harpdata val;
+	uint16_t line;
+	uint8_t x;
 	ttype typ;
-	token() {}
-	token(const wstring& ss, ttype t) :s(ss), typ(t) {}
+	uint32_t idx;
+	void Set(ttype toktype, uint8_t _x, uint16_t _line, uint32_t _idx) {
+		typ = toktype;
+		x = _x;
+		line = _line;
+		//_idx = _idx;
+	}
+	void SetType(ttype toktype) {
+		typ = toktype;
+	}
+	void SetStr(harpstr _str) {
+		val.SetStr(_str);
+	}
+	void SetError(errortype err) {
+		typ = ttype::_Error;
+		val.byte = (uint64_t)err;
+	}
+	harpdata Move() {
+		return val;
+	}
+	void Delete() {
+		val.DecRC();
+	}
 };
 
-class LEXER {
+class HarpLexer {
 private:
 public:
-	int x, line, error;
+	wstring buf_s;
 	wstring source;
+	uint16_t idx;
+	uint16_t x;
+	uint32_t line;
+	uint32_t error;
 	wchar c;
-	LEXER() {
+	HarpLexer() {
 		c = ' ';
 		error = 0;
-		x = 0, line = 1;
+		idx = 0, line = 1;
+		buf_s.reserve(1024);
 	}
-	LEXER(wstring s) :source(s) { c = ' '; error = 0; x = 0, line = 1; }
-	wchar get() {//문자 얻는데 이 짓거리를 해서 파싱이 느림.
-		static char flag = 0;
-		if (x >= (int)source.size())return None;
-		else if (flag) { line++; flag = 0; }
-		if (source[x] == '\n')flag = 1;
-		return source[x++];
+	HarpLexer(const wstring& s) :source(s) {
+		c = ' '; 
+		error = 0; 
+		idx = 0;
+		line = 1;
+		buf_s.reserve(1024);
+	}
+	const wchar get() {//문자 얻는데 이 짓거리를 해서 파싱이 느림.
+		//static char flag = 0;
+		//if (idx >= (int)source.size())return None;
+		//else if (flag) { line++; flag = 0; }
+		//if (source[idx] == '\n')flag = 1;
+		//return source[idx++];
+	l_redo:
+		if (idx >= source.size()) return '\0';
+		const wchar c = source[idx];
+		if (c == '\r') { idx++; goto l_redo; }
+		if (c == '\n') { line++; x = 0; }
+		idx++; 
+		return c;
 	}
 	inline int range(wchar c, int a, int b) { //아니 매크로를 쓰라고 좀;
 		return (c >= a && c <= b);
 	}
-	bool isunicode(wchar c) {//유니코드 검색
+	inline bool isunicode(wchar c) {//유니코드 검색
 		return  (c == L'_'
 				 || (c >= L'A' && c <= L'Z')
 				 || (c >= L'a' && c <= L'z')
@@ -391,7 +435,7 @@ public:
 			range(c, 0x3040, 0x309F) || range(c, 0x30A0, 0x30FF) ||//일본어
 			range(c, 0x4E00, 0x9FFF) || range(c, 0xF900, 0xFAFF))//한자*/
 	}
-	bool isident(wchar c) {//유니코드 검색
+	inline bool isident(wchar c) {//유니코드 검색
 		return  (c == L'_'
 				 || (c >= L'A' && c <= L'Z')
 				 || (c >= L'a' && c <= L'z'));
@@ -400,73 +444,114 @@ public:
 		range(c, 0x3040, 0x309F) || range(c, 0x30A0, 0x30FF) ||//일본어
 		range(c, 0x4E00, 0x9FFF) || range(c, 0xF900, 0xFAFF))//한자*/
 	}
-	token next() {//다음 토큰 얻기
-		wstring s = L"";
-		string ss = "";
+	inline harpstr to_harpstr(const wstring& buf) {
+		return harpstr_new(buf_s.c_str(), buf_s.size());
+	}
+	wchar getchar() {
+		
+		if (c != '\\') return c;
+		c = get();
+		if (c == 'n') return '\n';
+		if (c == 't') return '\t';
+		if (c == 'x') {
+			wchar cd = 0u;
+			c = get();
+			if (!iswxdigit(c)) return '\0';
+		}
+		if (c == 'u') { 
+			return '\t'; 
+		}
+		buf_s += '\\';
+		return c;
+	}
+	harptoken next() {//다음 토큰 얻기
+		harptoken tok;
+		buf_s.clear();
 		if (error) {
 			while (c != '\n' && c != None)c = get();
 			error = 0;
 		}
 		while (iswspace(c))c = get();//문자가 공백이면 get()
+		tok.Set(ttype::None, this->x, this->line, this->idx);
+
 		if (isident(c)) {//식별자 얻기
 			for (; isunicode(c) || iswdigit(c); c = get()) {//식별자 얻음
-				s += c;
+				buf_s += c;
 			}
-			return token(s, key.findkey(s));//식별자, 또는 예약어 반환
+			ttype typ = key.findkey(buf_s);
+			tok.SetType(typ);
+
+			if (typ == ttype::_Ident) {
+				tok.SetStr(to_harpstr(buf_s));
+			}
+			return tok;
 		}
 		else if (iswdigit(c)) {//숫자 얻기
 			for (; isunicode(c) || iswdigit(c); c = get()) {
-				s += c;
+				buf_s += c;
 			}
 			if (c != '.') {//. 없으면 정수
-				return token(s, _Int);
+				tok.SetType(_Int);
+				tok.SetStr(to_harpstr(buf_s));
+				return tok;
 			}
 			/*있으면 실수*/
-			s += c;
+			buf_s += c;
 			for (c = get(); iswdigit(c); c = get()) {
-				s += c;
+				buf_s += c;
 			}
-			return token(s, _Num);
+			tok.SetType(_Num);
+			tok.SetStr(to_harpstr(buf_s));
+			return tok;
 		}
 		else if (c == '"') {//문자열 얻기
 			for (c = get(); c != '"' && c; c = get()) {
-				s += c;
+				c = getchar();
+				if(c=='\0'){}
+				buf_s += c;
 			}
 			c = get();
-			return token(s, _Str);
+			tok.SetType(_Str);
+			tok.SetStr(to_harpstr(buf_s));
+			return tok;
 		}
 		else if (c == '\'') {//문자열 얻기 2
 			for (c = get(); c != '\'' && c; c = get()) {
-				s += c;//참고로 이스케이프 문자 안 만듬ㅋㅋㅋㅋ 엌ㅋㅋㅋ
+				buf_s += c;//참고로 이스케이프 문자 안 만듬ㅋㅋㅋㅋ 엌ㅋㅋㅋ
 			}
 			c = get();
-			return token(s, _Str);
+			//tok.SetType(_Char);
+			//tok.val.SetChar();
 		}
-		else if (c == L'#') {//16진수 정수. 사용법은 대충 #00f00f 이런 식
-			for (c = get(); iswxdigit(c); c = get())ss += (char)c;
-			return token(to_wstring(strtol(ss.c_str(), NULL, 16)), _Int);
-		}
+		//else if (c == L'#') {//16진수 정수. 사용법은 대충 #00f00f 이런 식
+		//	for (c = get(); iswxdigit(c); c = get())ss += (char)c;
+		//	return token(to_wstring(strtol(ss.c_str(), NULL, 16)), _Int);
+		//}
 		else if (c == L'~') {//주석이 ~ 이거밖에 없음. ~로 시작해서 ~로 끝냄
 			c = get();
 			while (c != L'~')c = get();
 			c = get();
 			return next();
 		}
-		else if (!c) { return token(L"", None); }//c가 null이면 공백 리턴
+		else if (!c) { return tok; }//c가 null이면 공백 리턴
 		else {
 			/*기호 찾기*/
-			s += c;
+			buf_s += c;
 			c = get();
-			s += c;
-			if (key.findgiho(s) != _Error) {
-				c = get(); return token(s, (ttype)key.typestr[s]);
+			buf_s += c;
+			ttype tt = key.findgiho(buf_s);
+			if (tt!= _Error) {
+				c = get(); 
+				tok.SetType(tt);
 			}
-			s.pop_back();
-			return token(s, key.findgiho(s));
+			else {
+				buf_s.pop_back();
+				tok.SetType(key.findgiho(buf_s));
+			}
 		}
-		return token(L"", None);
+		return tok;
 	}
-	~LEXER() {
+	~HarpLexer() {
 		source.clear();
 	}
 };
@@ -588,13 +673,13 @@ struct PolishStack{
 class COMPILE {//에러 클래스를 상속받음.
 private:
 	PolishStack polstack;
-	vector<LEXER>tok;
+	vector<HarpLexer>tok;
 	int nmod;
 	uint32_t loopcount;
 	uint32_t skippoint; //
 	uint32_t nfunc; //n
 	
-	token t;
+	harptoken t;
 	
 	
 	//바이트 코드 변환 때문에 뭔가 더러움
@@ -730,7 +815,7 @@ public:
 	}
 	void compile(const wchar* dir) {//파일 불러오고 분석 시작
 		ifstream in(dir);
-		if (!in.is_open()) { ERRORMSG::puterror(dir, NOFILE, 0); /*throw NOFILE;*/return; }
+		if (!in.is_open()) { ERRORMSG::puterror(dir, errortype::NOFILE, 0); /*throw NOFILE;*/return; }
 		in.seekg(0, ios::end);
 		string str;
 		int size = (int)in.tellg();
@@ -750,7 +835,7 @@ public:
 				state(); //문장 분석
 			}
 			catch (errortype msg) { //예외 처리
-				ERRORMSG::puterror(t.s, msg, tok.back().line);
+				ERRORMSG::puterror(L"", msg, tok.back().line);
 				tok.back().error = 1;
 				NEXT;
 			}

@@ -1,5 +1,6 @@
 # Harp Script
 
+## dev v0.2
 **Documentation In progress**
 
 ## NOTICE
@@ -8,9 +9,6 @@ https://codeberg.org/Noksek/harp_script
 
 ## Info
 - [Korean/한국어판 README_KR](README_KR.md)
-- First Developed: ~December 2018
-- Remake : April 2026~
-- Status: Experimental
 
 ## Introduction
 
@@ -95,3 +93,10 @@ n1
 ## LICENSE
 Until `v0.1.0` : `Apache License 2.0` <br>
 After `v0.1.1` : `HarpScript License` (will explain it later.)
+
+
+## Version
+
+- v0.1 Dev : ~ December 2018
+- v0.1 Published : December 2018
+- v0.2 Dev : April 2026, August 2026~

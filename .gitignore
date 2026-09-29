@@ -8,3 +8,8 @@ harp_script/Debug
 harp_script/Release
 harp_script/x64
 harp_test/x64
+
+
+
+harp_script/
+harp_test/

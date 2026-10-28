@@ -1,293 +1,301 @@
 # Harp Script v0.1.1 Language Specification
 
+**Version**: v0.1.1 (Prototype, planned for release in November)  
+**Completion Rate**: 50% or less  
+**Last Updated**: October 29, 2026
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Version Numbering](#version-numbering)
+3. [Supported Environments](#supported-environments)
+4. [Command Line Interface](#command-line-interface)
+5. [Type System](#type-system)
+6. [Program Structure](#program-structure)
+7. [Control Statements](#control-statements)
+8. [Operators](#operators)
+9. [Functions](#functions)
+10. [Built-in Functions](#built-in-functions)
+11. [Modules and Comments](#modules-and-comments)
+12. [Future Plans](#future-plans)
+
+---
+
 ## Overview
 
-**Harp Script** is a bytecode language with script-like syntax. It supports both static and dynamic typing simultaneously. While appearing as an interpreter language on the surface, future expansion to a compiled language is planned. JIT compilation will not be supported.
+**Harp Script** is a bytecode-based scripting language.
 
-> **Note:** Source code is not publicly available on GitHub; it is only available on Codeberg.
+### Core Features
 
----
-
-## 1. Implementation Features
-
-### 1.1 Core Design Principles
-
-- **Reference Counting (RC)**: Memory management for `str` and `strbuf` types
-- **Lightweight Implementation**: Avoids complex implementation patterns
-- **Minimal GC Overhead**: Currently uses RC only; no global garbage collection
-- **Developer Freedom**: Changes are decided at the discretion of the repository maintainer
-
-### 1.2 Code Style Principles
-
-Code style is up to the developer, but the following recommended style is provided:
-
-- Avoid unnecessary style debates.
+- **Type System**: Transitioning from dynamic to explicit static typing
+- **Memory Management**: Reference Counting (RC) based, no global GC
+- **Implementation Philosophy**: Lightweight implementation, avoid complexity
+- **Development Status**: Early prototype stage
 
 ---
 
-## 2. Program Structure
+## Version Numbering
 
-### 2.1 Entry Point
+### v0.1.x Series Rules
 
-Programs start with the `main` keyword. Code declared outside of `main` causes a compilation error.
+- **v0.1.1, v0.1.2**: Both must conform to v0.1 specification
+- **Compatibility**: If v0.1.1 and v0.1.2 exist, **v0.1.2 is mandatory**
+- **v0.2 Compatibility**: Undecided (aiming for compatibility if possible)
+- Before v1.0, no guarantee of backward compatibility
 
-**Rules:**
-- `main` is not a function name.
-- All code must be written inside the `main` keyword.
+### Version Roadmap
 
-**Basic Example:**
+| Version | Status | Timeline | Major Changes |
+|---------|--------|----------|---------------|
+| v0.1.1 | Prototype | November | Current specification |
+| v0.1.2 | Planned | TBD | New features to be added |
+| v0.2 | Planned | TBD | Major improvements (compatibility undecided) |
+
+---
+
+## Supported Environments
+
+### Architecture
+
+- **Recommended**: Intel, AVX 128 or higher
+- **Current Testing Environment**: Windows 11 x64
+- **Future Support**: Linux (planned for November)
+
+### Platform Status
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| Windows 11 x64 | ✅ Tested | v0.1.1 baseline |
+| Linux x64 | 🚧 Planned | Planned for November |
+
+---
+
+## Command Line Interface
+
+### Usage
+
+```bash
+harp <command> [options] [file]
+```
+
+### Commands
+
+#### Run
+
+```bash
+harp run <file>
+```
+Compiles and executes a Harp Script file.
+
+#### Build (Planned for v0.1.2)
+
+```bash
+harp build <file> -o <binary>
+```
+Compiles Harp Script to binary. (Scheduled for v0.1.2 release)
+
+#### Help
+
+```bash
+harp help
+harp -h
+harp --h
+```
+
+#### Version
+
+```bash
+harp --v
+harp -v
+harp ver
+harp version
+```
+
+### Options
+
+#### `-asm` (Disassembly)
+
+```bash
+harp run <file> -asm
+```
+Outputs disassembly of compiled bytecode.
+
+#### Optimization Options
+
+```bash
+harp run <file> -O1  # Partial optimization (constant folding, some statement removal)
+harp run <file> -O0  # No optimization
+```
+
+| Option | Description |
+|--------|-------------|
+| `-O0` | No optimization |
+| `-O1` | Partial optimization (constant folding, some statement removal) |
+
+---
+
+## Type System
+
+### Currently Supported Types (v0.1.1)
+
+#### Primitive Types
+
+| Type | Description | Memory | Status |
+|------|-------------|--------|--------|
+| `bool` | Boolean (`true`, `false`) | Stack | ✅ Supported |
+| `int` | Integer | Stack | ✅ Supported (may be deprecated in v0.2) |
+| `char` | Unicode character | Stack | ⚠️ Partial support (`'a` or `'a'`) |
+| `num` | Real number (f64) | Stack | ✅ Supported |
+| `str` | String (immutable) | Heap (RC) | ✅ Supported |
+
+#### Type Properties
+
+- **Current**: Only `immut` (immutable) types supported
+- **Future**: `mut` (mutable) types to be added
+
+### None and Error
+
+Current handling may change to reduce ambiguity.
+
+#### Invalid (Error)
+
+```
+none / error
+```
+Currently treated as **runtime error** immediately upon detection
+
+#### Valid
+
+All other types
+
+---
+
+## Program Structure
+
+### Program Organization: <Macro> <Head> <Body> <Main>
+
+```harp
+-- <Macro>
+#ver 0.1
+
+-- <Head>: Module imports
+include 'a.harp' as A
+include 'b.harp' as B
+
+-- <Body>: Function and identifier declarations
+func mysum(a, b)
+  ret a + b
+;
+
+-- <Main>: main is allowed only at the end
+-- main must exist in the top-level module. Compilation error if missing.
+main
+  print(mysum(10, 20))
+;
+```
+
+### Entry Point
+
+Programs start with the `main` keyword.
+
 ```harp
 main
   var n = 0
   print(n)
-  var msg = 'Hello World'
-  print(msg)
 ;
 ```
 
-> **Note:** This syntax may change in the future (e.g., when passing arguments to main is needed).
+### Variable Declaration
+
+#### Basic Form
+
+```harp
+var n = 30
+var m = 50
+```
+
+#### Type Annotation (Currently transitioning to static typing)
+
+```harp
+var n int = 300
+var m num = 500.0
+var b bool = true
+var s str = 'hello'
+var c char = 'a'
+```
+
+### Identifier Rules
+
+- Duplicate identifiers in same scope prohibited
+- Redeclaration prohibited
 
 ---
 
-## 3. Identifier Rules
+## Control Statements
 
-- No duplicate identifiers are allowed in the same scope (node).
-- Redeclaration of identifiers is forbidden (as of v0.1.1).
+### Conditionals
 
-**Example:**
+#### if-elif-else
+
 ```harp
-main
-  var n = 30
-  var m = 500
+if condition
+  -- code to execute
+;
+elif condition2
+  -- or this code
+;
+else
+  -- or this code
 ;
 ```
 
----
+### Loops
 
-## 4. Block Structure
+#### while Loop
 
-### 4.1 Basic Block Syntax
-
-Harp Script uses `:` and `;` to define blocks.
-
-**Rules:**
-- `:` can be omitted if not necessary.
-- `;` terminates a block.
-
-**Example:**
 ```harp
-main
-  var n = 10
-  print(n)
+while condition
+  -- code to repeat
 ;
 ```
 
-### 4.2 Alternative Block Syntax (do-end)
+### Loop Control
 
-Developers who prefer not to use `:` and `;` can use `do` and `end`.
-
-```harp
-main do
-  var n = 10
-  print(n)
-end
-```
-
-> **Note:** `do-end` may be considered redundant, but developer choice is respected.
-
----
-
-## 5. Function Declaration
-
-### 5.1 Basic Function Structure
+#### redo
+Restarts the current iteration.
 
 ```harp
-func sum(a, b)
-  return a + b
-;
-```
-
-### 5.2 Function Features
-
-- **Type Checking**: Function type checking is supported.
-- **Function Overloading**: Not currently supported (due to complex implementation).
-  - May be supported in the future if a simple implementation method is devised.
-
-### 5.3 Type Annotation (Not Yet Implemented)
-
-The following syntax is expected to be supported in the future:
-
-```harp
-func int sum(a int, b int)
-  return a + b
-;
-```
-
-### 5.4 Return Statement
-
-`return` can be abbreviated as `ret` (decided at the discretion of the repository maintainer).
-
-```harp
-func getValue()
-  ret 42
-;
-```
-
----
-
-## 6. Control Statements
-
-### 6.1 Loop Control
-
-- **redo**: Restart the current iteration.
-- **break**: Exit the loop.
-
-### 6.2 Labels
-
-Labels are currently under testing and are declared with `@`.
-
-**Expected Syntax (Subject to Change):**
-```harp
-@hahabreak
-while i < 100
+while i < 10
   i += 1
-  if i == 30
-    break_to @hahabreak
+  if i == 5
+    redo
   ;
 ;
 ```
 
----
-
-## 7. Macros
-
-Macros start with `#`.
-
-### 7.1 Current Usage
-
-- **#ver**: Version specification
-  ```harp
-  #ver 0.1 -- Only usable in version 0.1
-  ```
-
----
-
-## 8. Modules
-
-### 8.1 include Keyword
-
-The `import` keyword is not currently supported.
-Modules are loaded relative to the directory of the file.
-
-### 8.2 Module Characteristics
-
-- Module analysis is performed **recursively**.
-- **Circular references are not allowed**.
-- Using `as` is **mandatory**.
-
-### 8.3 Usage Examples
+#### break
+Exits the loop.
 
 ```harp
-include 'a.harp' as A
-include 'ex/a.harp' as EX
-
-main
-  A.someFunction()
-  EX.anotherFunction()
+while i < 100
+  if i == 30
+    break
+  ;
+  i += 1
 ;
 ```
 
----
+### Labels (Not Currently Supported)
 
-## 9. Comments
-
-Harp Script supports two comment formats:
-
-- **Single-line Comment**: `--`
-  ```harp
-  -- This is a single-line comment
-  ```
-
-- **Multi-line Comment**: `--[ ]--`
-  ```harp
-  --[ This is a
-      multi-line
-      comment ]--
-  ```
+Labels and `break_to` are not currently supported. (To be added in future)
 
 ---
 
-## 10. Variable Declaration
+## Operators
 
-### 10.1 Basic Variable Declaration
-
-```harp
-var n = 30, m = 50
-```
-
-### 10.2 Type Annotation (Experimental)
-
-```harp
-var n int = 300, m num = 500.0
-```
-
-### 10.3 Type Checking Characteristics
-
-- **Difference from Python**: Type mismatch causes a compilation error.
-- **Difference from Other Languages**: Type checking provides meaningful performance improvements at runtime:
-  - Minimized dynamic typing checks
-  - Minimized reference counting checks
-
-> **Current Issue**: Ambiguity exists when type annotation is omitted.
-
----
-
-## 11. Type System
-
-### 11.1 Supported Types (v0.1.1)
-
-| Type | Description | Memory Management |
-|------|-------------|------------------|
-| `void` (or `none`) | None | Stack |
-| `bool` | Boolean (`true`, `false`) | Stack |
-| `char` | Unicode character (~3 bytes) | Stack |
-| `int` | Integer (i48: up to 48-byte range) | Stack |
-| `num` | Floating-point (equivalent to f64) | Stack |
-| `str` | String (immutable) | Heap (RC) |
-| `strbuf` | Mutable string (experimental) | Heap (RC) |
-
-> **Note:** `int` currently supports i48 (48-byte range), but may be limited to 32-byte range in the future.
-
-### 11.2 Void Type Special Case
-
-```harp
-var n = none  -- void type
-```
-
-The following is **not allowed**:
-```harp
-var n void = none  -- Compilation error
-```
-
-**Reason**: A void variable has no meaning and is logically incorrect.
-
-### 11.3 Mutability
-
-Current support status:
-- Only `immut` types are supported.
-- `mut` is not supported except for `strbuf`.
-
-### 11.4 Future Type System Plans
-
-- **NaN Boxing**: Possible extension in v0.2 (subject to change)
-
----
-
-## 12. Operators
-
-### 12.1 Assignment Operators
-
-Only frequently used assignment operators are supported:
+### Assignment Operators
 
 | Operator | Description |
 |----------|-------------|
@@ -296,25 +304,15 @@ Only frequently used assignment operators are supported:
 | `-=` | Subtraction assignment |
 | `*=` | Multiplication assignment |
 
-**Currently Not Supported**: `/=`, `%=`
+**Not Supported**: `/=`, `%=`
 
-> **Performance Tip:** `n = n + 500` and `n += 500` have performance differences at compile time. Use `+=` is recommended.
+> **Performance Tip**: Using `+=` is more efficient than `n = n + 500`.
 
-### 12.2 Operator Precedence (High → Low)
+### Arithmetic Operators
 
-1. Unary `-`, `!`
-2. `**` (Exponentiation)
-3. `*`, `/`, `%`
-4. `+`, `-`
-5. `<`, `<=`, `>`, `>=`
-6. `<=>`
-7. `==`, `!=`
-8. `and` (or `&&`)
-9. `or` (or `||`)
+Supported: `+`, `-`, `*`, `/`, `%`, `**` (exponentiation)
 
-### 12.3 Arithmetic Operator Type Rules
-
-Supported operations: `+`, `-`, `*`, `/`, `%`, `**`
+#### Type Rules
 
 | Left | Right | Result |
 |-----|-------|--------|
@@ -323,140 +321,332 @@ Supported operations: `+`, `-`, `*`, `/`, `%`, `**`
 | `num` | `int` | `num` |
 | `int` | `int` | `int` |
 
-**On Operation Failure**: Returns `void` (none) or `error` (subject to change)
+### Comparison Operators
 
-### 12.4 Comparison Operators
-
-| Operator | Return Value | Description |
-|----------|--------------|-------------|
-| `<`, `<=`, `>`, `>=` | `bool` or `none` | Returns `none` if comparison is not possible |
-| `==`, `!=` | `bool` or `none` | Returns `none` if comparison is not possible |
+| Operator | Return Type | Description |
+|----------|-------------|-------------|
+| `<`, `<=`, `>`, `>=` | `bool` | |
+| `==`, `!=` | `bool` | |
 | `<=>` | `int` | Spaceship operator |
 
-### 12.5 Logical Operators
+### Logical Operators
 
-| Operator | Alternative | Return Value |
-|----------|-------------|--------------|
-| `and` | `&&` | `bool` or `none` |
-| `or` | `\|\|` | `bool` or `none` |
+| Operator | Alternative | Return Type |
+|----------|-------------|-------------|
+| `and` | `&&` | `bool` |
+| `or` | `\|\|` | `bool` |
 
-### 12.6 Bitwise Operators (Not Yet Implemented, Planned for Future)
+### Precedence (High → Low)
 
-| Operator | Description | Applicable Types | Return Value |
-|----------|-------------|------------------|--------------|
-| `&` | Bitwise AND | `int`, `bool` | `int` (expected) |
-| `\|` | Bitwise OR | `int`, `bool` | `int` (expected) |
-| `^` | Bitwise XOR | `int`, `bool` | `int` (expected) |
-| `~` | Bitwise NOT | `int`, `bool` | `int` (expected) |
+1. Unary `-`, `!`
+2. `**`
+3. `*`, `/`, `%`
+4. `+`, `-`
+5. `<`, `<=`, `>`, `>=`
+6. `<=>`
+7. `==`, `!=`
+8. `and` (`&&`)
+9. `or` (`||`)
+
+### Bitwise Operators (Not Implemented)
+
+Currently not supported. To be added in the future.
 
 ---
 
-## 13. Optimization
+## Functions
 
-### 13.1 Currently Supported Optimization
+### Function Declaration
 
-Harp Script supports limited optimization:
+```harp
+func sum(a, b)
+  return a + b
+;
+```
 
-- **Constant Folding (-O1)**: Successfully implemented; additional optimizations planned based on implementation capacity.
+### Type Annotation (Currently being implemented)
+
+```harp
+func int sum(a int, b int)
+  return a + b
+;
+```
+
+### Return Statement
+
+```harp
+func getValue()
+  return 42
+;
+```
+
+Can also be written as `ret`:
+
+```harp
+func getValue()
+  ret 42
+;
+```
+
+### Function Overloading
+
+**Currently not supported**. May be added in the future if a simple implementation method is devised.
+
+---
+
+## Built-in Functions
+
+### Custom Functions vs Built-in Functions
+
+- **harpfunc**: User-defined functions
+- **infunc**: Performance-optimized built-in functions
+
+### Current Basic Built-in Functions
+
+Basic arithmetic operations:
+- `floor(num)`: Floor function
+- `max(a, b)`: Maximum value
+- `min(a, b)`: Minimum value
 
 **Example:**
 ```harp
-main
-  n = 10 + 400
-  -- After -O1
-  -- n = 410
-;
-```
-
-### 13.2 Experimental Optimization
-
-Removal of unnecessary identifiers and statements is under experimentation.
-
-**Example:**
-```harp
-main
-  m = 100
-  n = 400
-  print(100)
-  -- m, n are unnecessary; removed
-;
+floor(15.32717)
+=> push [literal index of 15.32717]
+=> incall [built-in function number for floor]
 ```
 
 ---
 
-## 14. Additional Notes
+## Modules and Comments
 
-### 14.1 Current Limitations
+### Modules
 
-- Function overloading not supported
-- Bitwise operations not implemented
-- Labels and break_to syntax under testing
-- `/=`, `%=` operators not supported
-- `mut` types (except `strbuf`) not supported
-
-### 14.2 Future Plans
-
-- Function overloading (if a simple implementation method is devised)
-- Expansion to compiled language
-- Type system expansion (NaN Boxing, etc.)
-- Bitwise operation implementation
-
----
-
-## 15. Examples
-
-### 15.1 Simple Program
+#### include Keyword
 
 ```harp
+include 'a.harp' as A
+include 'utils/helper.harp' as Helper
+
 main
-  var greeting = 'Hello, Harp Script!'
-  print(greeting)
+  A.someFunction()
+  Helper.doSomething()
 ;
 ```
 
-### 15.2 Functions and Variables
+**Rules:**
+- Recursive module analysis supported
+- Circular references not allowed
+- `as` keyword mandatory
+
+### Comments
+
+#### Single-line Comment
 
 ```harp
-func multiply(a, b)
-  return a * b
-;
-
-main
-  var result = multiply(5, 10)
-  print(result)
-;
+-- This is a single-line comment
 ```
 
-### 15.3 Control Statements
+#### Multi-line Comment
 
 ```harp
-main
-  var i = 0
-  while i < 10
-    print(i)
-    i += 1
-  ;
-;
+--[ This is a
+    multi-line
+    comment ]--
 ```
 
-### 15.4 Using Modules
+### Macros
+
+Currently only `#ver` is supported:
 
 ```harp
-include 'utils.harp' as Utils
-
-main
-  Utils.doSomething()
-;
+#ver 0.1  -- Only usable in version 0.1
 ```
 
 ---
 
-## 16. License
+## Future Plans
 
-- **Up to v0.1.0**: Apache License 2.0
-- **v0.1.1 and Later**: HarpScript License (to be explained)
+### To be Added or Modified in v0.1.2 or Later
+
+#### import Support, node, using
+When using strings, `import` has the same functionality as `include`.
+
+```harp
+import 'a.harp' as A           -- import 'a' as A also supported if enabled
+import dxlib as dx             -- Search globally, then in current project
+A.print_something(100) 
+dx.putlog('wewek')
+```
+
+- For global module access only (subject to change):
+```harp
+import $something as sm
+print(sm.wawa())
+```
+
+- For current project only (subject to change):
+```harp
+import .something as sm
+print(sm.wawa())
+```
+
+- `node` is equivalent to C++ namespace. `using` keyword can also be added.
+- The `using` keyword can only be used inside a node (to prevent name conflicts).
+
+```harp
+import dxlib as dx
+node funny
+  using dx  -- Example only
+end
+funny.putlog('aksdfmksdmfk')
+```
+
+#### Built-in -O1 Optimization
+- `-O1` constant folding and unnecessary statement removal
+- If `-O0` is specified, no optimization will be performed
+
+#### Recommended Block Syntax Change
+- In official documentation, `do` `end` takes precedence over `:` `;` (but old syntax still supported)
+- `do` can generally be omitted
+
+#### const or let Keyword
+Identifiers not declared with `var` are always treated as constants.
+
+```harp
+const i = 300
+print(i)
+-- i=500
+-- Compilation error when attempting to change
+```
+
+This allows Harp Script to apply optimizations more easily in the future.
+
+#### loop Keyword
+```harp
+loop i in 0..10, 1
+  print(i, ' ') -- 0 1 2 3 4 5 6 7 8 9
+end
+
+loop i in 0...10, 1
+  print(i, ' ') -- 0 1 2 3 4 5 6 7 8 9 10
+end
+```
+
+#### Functions
+```harp
+-- Subject to change; not recommended
+func abc(a, b) 
+end
+
+-- Type annotation
+func abc int(a int, b int)
+  --a = 100 => Error because a is treated as const
+  ret a + b
+end
+
+-- Partial function overloading support possible
+-- Declaring var in arguments allows modification
+func abc num(var a num, var b num)
+  a+=b
+  ret a
+end
+```
+
+Functions require type annotation. Arguments without `var` are treated as const.
+Omit type for functions with no return value.
+
+#### Build Functionality
+```bash
+harp build <file> -o <binary>
+```
+
+#### Dynamic Library Support
+- DLL/SO dynamic linking
+- Strengthened C language interoperability
+
+```harp
+-- sample.dll or .so (Harp Script may recommend extensions)
+cfunc('sample') sample_sum int(a int)  -- Parameter names optional, types mandatory
+
+main
+  var v = sample_sum(10, 20)
+end
+```
+
+#### Extended Types
+Types for C language interoperability:
+
+```harp
+u8, u16, u32, i8, i16, i32, f32, f64, ptr
+```
+
+| Type | C Type | Description |
+|------|--------|-------------|
+| `u8`, `u16`, `u32` | `uint8_t` ~ `uint32_t` | Unsigned integers |
+| `i8`, `i16`, `i32` | `int8_t` ~ `int32_t` | Signed integers |
+| `f32` | `float` | Single precision |
+| `f64` | `double` | Double precision |
+| `ptr` | `void*` / `uintptr_t` | Pointer |
+
+#### Alias Feature
+
+```harp
+alias mydata = ptr
+```
+
+#### Object Support (Limited)
+
+- Harp Script does not implement a separate object system
+- Object functionality provided through C language integration
+- Memory management handled by external C modules
+
+#### Overflow Detection
+
+Strict arithmetic overflow checking:
+
+```harp
+-- Safe mode (planned)
+var a int = [int max value]
+a += 1  -- Runtime error
+```
+
+#### Exception Handling
+
+`try-catch` to be set only for unrecoverable exceptions.
+
+### v0.2 Considerations
+
+- Review of `int` type deprecation (unification to `num`)
+- NaN Boxing introduction
+- Function overloading
+- Bitwise operations
+- Expanded static optimization
 
 ---
 
-**Document Version**: v0.1.1  
-**Last Updated**: October 2026
+## Major Changes (2026-10-29)
+
+### v0.1.1 Baseline Updates
+
+- ✅ Control statements: if-elif-else, while confirmed
+- ✅ Label feature removed (currently not supported)
+- ✅ char type partial support clarified
+- ✅ Type system transition from dynamic to explicit static typing
+- ✅ Build command moved to v0.1.2 release
+- ✅ Completion rate specified at 50% or less
+- ✅ Platform support status added
+
+### Status Indicators
+
+- ✅ Supported
+- ⚠️ Partially supported
+- 🚧 Planned
+- ❌ Not supported
+
+---
+
+## Notes
+
+All content in this document reflects the prototype stage and may change before the November release.
+
+**Official Repository**: https://codeberg.org/Noksek/harp_script

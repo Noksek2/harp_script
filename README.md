@@ -2,23 +2,59 @@
 
 **Documentation In progress**
 
-<img width="200" height="200" alt="Image" src="https://github.com/user-attachments/assets/6a9b426f-38df-4145-a1be-634d9ce833e7" />
+*HarpScript for simple programming*
+
+<img alt="Image" height=150 src="harpscriptlogo.jpg" />
+
+
+## Usage
+
+0. Go to Release Page, Download `HarpScriptv0_1_1.zip`.
+
+1. Write your code, and remember the path and file name.
+
+2. Run harp.exe, or write commands
+```bash
+$ harp run src/main.harp
+```
+3. Bytecode will be generated, and vm runs. Happy coding ;)
+
+4. if you want help, type below. And read the docs please.
+```
+$ harp help
+$ harp -help
+$ harp --help
+$ harp -h
+$ harp --h
+```
+
+## LICENSE
+Until `v0.1.0` : `Apache License 2.0` <br>
+After `v0.1.1` : `HarpScript License` (will explain it later.)
+
+<img alt="Image" height=100 src="hsl_logo.jpg" />
+
+
 
 ## Info
 - [Korean/한국어판 README_KR](README_KR.md)
-- First Developed: ~December 2018
-- Remake : April 2026~
+- First Developed (v0.1.0): ~December 2018
+- Remake Idea: April 2026~
+- v0.1.1 : August 2026 ~ December 2026 (Planned)
 - Status: Experimental
-- 
+- `no ai use - nok project`
+
 ## Introduction
 
-Harp Script is a simple, experimental scripting language developed around 2018.
+Harp Script is a simple, script-style programming language, developed around 2018.
 
-The goal of Harp Script is
-- Simple grammar, Flexible syntax.
-- A not-so-strict parser.
-- Fast VM, Memory-friendly development (no Garbage Collection).
-- Light and fast VM.
+The goals of Harp Script are as follows:
+
+- escape from stereotype of toy script
+- Simple syntax, flexible syntax usage
+- Uncomplicated parser
+- Lightweight and extensible VM
+- Reference Counting, Reduce dependency on memory GC (ex : Mark sweep Algorithm)
 
 ## NOTICE
 This repository is mainly for introduction and explanation, and the code has not been uploaded. Codeberg Instead.
@@ -28,11 +64,12 @@ https://codeberg.org/Noksek/harp_script
 - Easy to implement, use it for a long time.
 - Limited functions require thinking ability.
 - Basic functions, no complicated functions.
-- Code style debate useless
-- Typing errors are the developer’s responsibility
+- Code style is up to you.
+- Typing errors are up to you.
 
 
 ## Latest Version (v0.1.1)
+- Complete redesign
 - Modify Program Structure (VM, Compiler, Types... else)
 - Modify grammar
 
@@ -42,9 +79,17 @@ https://codeberg.org/Noksek/harp_script
 
 - Simple math operations
 
-- Some built-in functions
+- Minimal built-in function support
 
-- Console I/O
+- Minimal Basic data types
+
+- Minimal and lightweight Dynamic array(`List`), HashMap(`Dict`)
+
+- Minimal object support, for low-latency, no memory-GC
+
+- DLL/SO loading for direct C language interoperability(FFI, `cfunc`)
+
+- Simple language management system inspired by Go
 
 ## Codeberg, Please...
 - **Hosted on Codeberg** : To prevent unauthorized AI data harvesting, please contribute or fork via Codeberg. If using GitHub, keep your forks private.
@@ -59,21 +104,6 @@ Please refer to the files inside the example folder for syntax references and ex
 
 
 ## Implementation Features
-
-* ** Direct-to-Bytecode or Simple AST:** Does not build an explicit Abstract Syntax Tree (AST). A recursive descent parser with an operator-precedence stack generates bytecode directly during parsing. (See `express.cpp`)
-* **Simple FFI (Foreign Function Interface):** Uses WinAPI (`LoadLibrary`/`GetProcAddress`) to dynamically load `.dll` files (e.g., `DxLib.dll`). These are wrapped as built-in functions (infunc) that can be called directly from the VM. (See `memory.h`, `infunc.cpp`)
-* **Stack-Based VM:** A simple stack-based virtual machine, written in C++, interprets and executes the bytecode. (See `execute.cpp`)
-* 
-## Usage
-
-1. Write your code, and remember the path and file name.
-
-2. Run harp.exe, or write commands
-```bash
-$ harp src/main.harp
-```
-3. Bytecode will be generated, and vm runs. Happy coding ;)
-
-## LICENSE
-Until `v0.1.0` : `Apache License 2.0` <br>
-After `v0.1.1` : `HarpScript License` (will explain it later.)
+* **Simple FFI (Foreign Function Interface):** Uses WinAPI (`LoadLibrary`/`GetProcAddress`) to dynamically load `.dll` files (e.g., `DxLib.dll`). These are wrapped as built-in functions that can be called directly from the VM.
+* **Stack-Based VM:** A simple stack-based virtual machine, written in C++, interprets and executes the bytecode.
+* ** Direct-to-Bytecode or Simple AST (later):** Does not build an explicit Abstract Syntax Tree (AST). A recursive descent parser with an operator-precedence stack generates bytecode directly during parsing. 
